@@ -28,6 +28,28 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.parsed_body.dig("data", "salary_history").length
   end
 
+  test "employee details can be updated and the directory reflects changed values" do
+    patch api_v1_employee_path(@employee), params: {
+      employee: { country_code: "GB", department: "Legal", job_title: "Senior Counsel", status: "leave" }
+    }, as: :json
+
+    assert_response :success
+    assert_equal "GB", response.parsed_body.dig("data", "country_code")
+    assert_equal "leave", response.parsed_body.dig("data", "status")
+
+    get api_v1_employees_path, params: { country: "GB", status: "leave", q: "maya" }
+    assert_equal 1, response.parsed_body.dig("meta", "total")
+    assert_equal "Legal", response.parsed_body.dig("data", 0, "department")
+  end
+
+  test "employee update rejects invalid values without changing the record" do
+    patch api_v1_employee_path(@employee), params: { employee: { country_code: "XX", status: "unknown" } }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "US", @employee.reload.country_code
+    assert_equal "active", @employee.status
+  end
+
   test "new salary is appended and becomes the current salary on its effective date" do
     post api_v1_employee_salary_records_path(@employee), params: {
       salary_record: { amount: "165000", currency: "USD", effective_from: "2026-06-01", reason: "Promotion" }

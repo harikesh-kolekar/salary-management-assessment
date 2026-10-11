@@ -1,4 +1,4 @@
-import type { Dashboard, Employee, Page, Salary } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Page, Salary } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -19,6 +19,14 @@ export function fetchEmployees(params: URLSearchParams) {
 
 export async function fetchEmployee(id: number) {
   const result = await request<{ data: Employee }>(`/api/v1/employees/${id}`);
+  return result.data;
+}
+
+export async function updateEmployee(id: number, input: EmployeeUpdate) {
+  const result = await request<{ data: Employee }>(`/api/v1/employees/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ employee: input }),
+  });
   return result.data;
 }
 

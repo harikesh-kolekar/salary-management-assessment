@@ -35,7 +35,20 @@ module Api
         render json: { data: employee_json(employee, salary_record: employee.current_salary_record, include_history: true) }
       end
 
+      def update
+        employee = Employee.find(params[:id])
+        if employee.update(employee_params)
+          render json: { data: employee_json(employee, salary_record: employee.current_salary_record, include_history: true) }
+        else
+          render json: { error: "Validation failed", details: employee.errors.to_hash }, status: :unprocessable_entity
+        end
+      end
+
       private
+
+      def employee_params
+        params.require(:employee).permit(:employee_number, :first_name, :last_name, :email, :country_code, :department, :job_title, :status, :hired_on)
+      end
 
       def current_salaries_for(employee_ids)
         return {} if employee_ids.empty?

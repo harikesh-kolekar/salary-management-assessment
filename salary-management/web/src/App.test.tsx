@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
@@ -28,5 +28,40 @@ describe("salary management workspace", () => {
     expect(screen.getByText(/95,000/)).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Search employees" }), { target: { value: "ACME-00001" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("q=ACME-00001"), expect.anything()));
+  });
+
+  it("edits employee country, status, and department from the profile", async () => {
+    let current = { ...employee, salary_history: [employee.current_salary] };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/v1/employees/1" && init?.method === "PATCH") {
+        const body = JSON.parse(String(init.body)).employee;
+        current = { ...current, ...body, full_name: `${body.first_name} ${body.last_name}` };
+        return new Response(JSON.stringify({ data: current }), { status: 200 });
+      }
+      if (url === "/api/v1/employees/1") return new Response(JSON.stringify({ data: current }), { status: 200 });
+      if (url.startsWith("/api/v1/employees")) {
+        return new Response(JSON.stringify({ data: [current], meta: { page: 1, per_page: 25, total: 1, total_pages: 1 } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ as_of: "2026-10-11", headcount: 1, employee_count: 1, by_country: [], by_department: [], by_currency: [] }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByText("Avery Kim"));
+    await screen.findByRole("dialog", { name: "Avery Kim profile" });
+    fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
+    await screen.findByRole("dialog", { name: "Edit employee details" });
+    fireEvent.change(screen.getByLabelText("Country"), { target: { value: "GB" } });
+    fireEvent.change(screen.getByLabelText("Employee status"), { target: { value: "leave" } });
+    fireEvent.change(screen.getByLabelText("Department"), { target: { value: "Legal" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/employees/1", expect.objectContaining({ method: "PATCH" })));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit employee details" })).not.toBeInTheDocument());
+    const profile = within(screen.getByRole("dialog", { name: "Avery Kim profile" }));
+    expect(profile.getByText("On leave")).toBeInTheDocument();
+    expect(profile.getByText("United Kingdom (GB)")).toBeInTheDocument();
+    expect(profile.getByText("Legal")).toBeInTheDocument();
   });
 });

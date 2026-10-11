@@ -22,6 +22,8 @@ export type Employee = {
   salary_history?: Salary[];
 };
 
+export type EmployeeUpdate = Pick<Employee, "employee_number" | "first_name" | "last_name" | "email" | "country_code" | "department" | "job_title" | "status" | "hired_on">;
+
 export type Page<T> = {
   data: T[];
   meta: { page: number; per_page: number; total: number; total_pages: number };
