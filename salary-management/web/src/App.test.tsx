@@ -30,12 +30,14 @@ describe("salary management workspace", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("q=ACME-00001"), expect.anything()));
   });
 
-  it("edits employee country, status, and department from the profile", async () => {
+  it("edits employee country, status, department, and job title from the profile", async () => {
     let current = { ...employee, salary_history: [employee.current_salary] };
+    let updatePayload: Record<string, string> | null = null;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/v1/employees/1" && init?.method === "PATCH") {
         const body = JSON.parse(String(init.body)).employee;
+        updatePayload = body;
         current = { ...current, ...body, full_name: `${body.first_name} ${body.last_name}` };
         return new Response(JSON.stringify({ data: current }), { status: 200 });
       }
@@ -54,17 +56,23 @@ describe("salary management workspace", () => {
     await screen.findByRole("dialog", { name: "Edit employee details" });
     fireEvent.change(screen.getByLabelText("Country"), { target: { value: "GB" } });
     fireEvent.change(screen.getByLabelText("Employee status"), { target: { value: "leave" } });
-    expect(screen.getByLabelText("Department").tagName).toBe("SELECT");
-    expect(within(screen.getByLabelText("Department")).getByRole("option", { name: "Engineering" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Department"), { target: { value: "Legal" } });
+    const departmentSelect = screen.getByLabelText("Department");
+    expect(departmentSelect.tagName).toBe("SELECT");
+    expect(within(departmentSelect).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Engineering", "Finance", "People", "Sales", "Operations", "Legal", "Marketing", "Product", "Support",
+    ]);
+    fireEvent.change(departmentSelect, { target: { value: "Legal" } });
+    fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Senior Counsel" } });
     fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/employees/1", expect.objectContaining({ method: "PATCH" })));
+    expect(updatePayload).toMatchObject({ country_code: "GB", status: "leave", department: "Legal", job_title: "Senior Counsel" });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit employee details" })).not.toBeInTheDocument());
     const profile = within(screen.getByRole("dialog", { name: "Avery Kim profile" }));
     expect(profile.getByText("On leave")).toBeInTheDocument();
     expect(profile.getByText("United Kingdom (GB)")).toBeInTheDocument();
     expect(profile.getByText("Legal")).toBeInTheDocument();
+    expect(profile.getByText("Senior Counsel")).toBeInTheDocument();
   });
 
   it("creates an employee and opens the new profile", async () => {
