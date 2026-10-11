@@ -72,12 +72,28 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     assert_equal 0, Employee.where(employee_number: "ACME-NEW-2").count
   end
 
+  test "employee creation rejects a department outside the configured list" do
+    assert_no_difference("Employee.count") do
+      post api_v1_employees_path, params: {
+        employee: {
+          employee_number: "ACME-NEW-3", first_name: "Iris", last_name: "Wong",
+          email: "iris.wong@example.test", country_code: "US", department: "Unassigned",
+          job_title: "Counsel", status: "active", hired_on: "2026-10-01"
+        }
+      }, as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.dig("details", "department"), "is not included in the list"
+  end
+
   test "employee update rejects invalid values without changing the record" do
-    patch api_v1_employee_path(@employee), params: { employee: { country_code: "XX", status: "unknown" } }, as: :json
+    patch api_v1_employee_path(@employee), params: { employee: { country_code: "XX", status: "unknown", department: "Unassigned" } }, as: :json
 
     assert_response :unprocessable_entity
     assert_equal "US", @employee.reload.country_code
     assert_equal "active", @employee.status
+    assert_equal "Engineering", @employee.department
   end
 
   test "new salary is appended and becomes the current salary on its effective date" do

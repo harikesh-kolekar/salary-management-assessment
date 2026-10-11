@@ -54,6 +54,8 @@ describe("salary management workspace", () => {
     await screen.findByRole("dialog", { name: "Edit employee details" });
     fireEvent.change(screen.getByLabelText("Country"), { target: { value: "GB" } });
     fireEvent.change(screen.getByLabelText("Employee status"), { target: { value: "leave" } });
+    expect(screen.getByLabelText("Department").tagName).toBe("SELECT");
+    expect(within(screen.getByLabelText("Department")).getByRole("option", { name: "Engineering" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Department"), { target: { value: "Legal" } });
     fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
 
@@ -90,6 +92,8 @@ describe("salary management workspace", () => {
     fireEvent.change(screen.getByLabelText("Last name"), { target: { value: "Wong" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "iris.wong@example.test" } });
     fireEvent.change(screen.getByLabelText("Country"), { target: { value: "SG" } });
+    expect(screen.getByLabelText("Department").tagName).toBe("SELECT");
+    expect(within(screen.getByLabelText("Department")).getByRole("option", { name: "Engineering" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Department"), { target: { value: "Legal" } });
     fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Counsel" } });
     fireEvent.click(screen.getByRole("button", { name: "Create employee" }));
