@@ -47,6 +47,7 @@ The Rails tests cover directory search/pagination, profiles, salary validation/h
 - `GET /up` — health check.
 - `GET /api/v1/employees?q=&country=&department=&status=&page=&per_page=&sort=&direction=` — filtered, sorted, bounded page.
 - `GET /api/v1/employees/:id` — profile and salary history.
+- `POST /api/v1/employees` — create a validated employee directory record.
 - `PATCH /api/v1/employees/:id` — validate and update employee identity and organization fields.
 - `POST /api/v1/employees/:employee_id/salary_records` — append a validated salary change.
 - `GET /api/v1/dashboard` — headcount and current pay grouped in each native currency.
@@ -75,7 +76,8 @@ Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker com
 
 1. Open People and see the 10,000-person directory and on-roster headcount.
 2. Search for an employee number or filter by country, department, and status; move between pages.
-3. Open an employee, edit identity or organization details such as country, department, and status, then inspect salary history or add a future-dated salary change.
-4. Open Compensation to compare average salary and headcount within each country/department and inspect native-currency totals.
+3. Add an employee or open an existing profile to edit identity and organization details such as country, department, and status. New employees can have salary added afterward from their profile.
+4. Inspect salary history or add a future-dated salary change with a reason and local currency.
+5. Open Compensation to compare average salary and headcount within each country/department and inspect native-currency totals.
 
 The `docs/engineering-notes.md` contains the design choices and AI-use notes for an assessment walkthrough. No public deployment URL or recording has been created in this workspace; a hosting account/target is needed for those submission artifacts.

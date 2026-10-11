@@ -22,6 +22,14 @@ export async function fetchEmployee(id: number) {
   return result.data;
 }
 
+export async function createEmployee(input: EmployeeUpdate) {
+  const result = await request<{ data: Employee }>("/api/v1/employees", {
+    method: "POST",
+    body: JSON.stringify({ employee: input }),
+  });
+  return result.data;
+}
+
 export async function updateEmployee(id: number, input: EmployeeUpdate) {
   const result = await request<{ data: Employee }>(`/api/v1/employees/${id}`, {
     method: "PATCH",

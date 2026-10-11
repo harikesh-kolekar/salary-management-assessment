@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Users, X } from "lucide-react";
-import { createSalary, fetchDashboard, fetchEmployee, fetchEmployees, updateEmployee } from "./api";
+import { createEmployee, createSalary, fetchDashboard, fetchEmployee, fetchEmployees, updateEmployee } from "./api";
 import { formatCurrency, formatDate } from "./format";
 import type { Dashboard, Employee, EmployeeUpdate, Metric, Page } from "./types";
 
@@ -19,7 +19,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [showSalaryForm, setShowSalaryForm] = useState(false);
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+  const [employeeFormMode, setEmployeeFormMode] = useState<"create" | "edit" | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -75,11 +75,15 @@ export default function App() {
     setRefreshKey((key) => key + 1);
   }
 
-  async function employeeUpdated(input: EmployeeUpdate) {
-    if (!selected) return;
-    await updateEmployee(selected.id, input);
-    setSelected(await fetchEmployee(selected.id));
-    setShowEmployeeForm(false);
+  async function employeeSaved(input: EmployeeUpdate) {
+    if (employeeFormMode === "create") {
+      const created = await createEmployee(input);
+      setSelected(await fetchEmployee(created.id));
+    } else if (selected) {
+      await updateEmployee(selected.id, input);
+      setSelected(await fetchEmployee(selected.id));
+    }
+    setEmployeeFormMode(null);
     setRefreshKey((key) => key + 1);
   }
 
@@ -98,7 +102,7 @@ export default function App() {
       <main className="main-content">
         <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> {pageTitle}</div><div className="user-chip"><span className="avatar">JD</span><span>Jamie Davis</span><span className="chevron">⌄</span></div></header>
         <div className="content-wrap">
-          <div className="page-heading"><div><div className="eyebrow">PEOPLE OPERATIONS</div><h1>{pageTitle}</h1><p>{view === "people" ? "Your organization, at a glance." : "Understand how your organization pays people."}</p></div><div className="as-of"><span className="live-dot" /> Data updated just now</div></div>
+          <div className="page-heading"><div><div className="eyebrow">PEOPLE OPERATIONS</div><h1>{pageTitle}</h1><p>{view === "people" ? "Your organization, at a glance." : "Understand how your organization pays people."}</p></div><div className="heading-actions">{view === "people" && <button className="button-primary add-employee-button" onClick={() => setEmployeeFormMode("create")}><Plus size={15} /> Add employee</button>}<div className="as-of"><span className="live-dot" /> Data updated just now</div></div></div>
           {error && <div className="error-banner" role="alert">{error}<button onClick={() => setRefreshKey((key) => key + 1)}>Retry</button></div>}
           {view === "people" ? <>
             <Stats dashboard={dashboard} />
@@ -117,8 +121,8 @@ export default function App() {
         </div>
       </main>
 
-      {selected && <EmployeePanel employee={selected} onClose={() => { setSelected(null); setShowSalaryForm(false); setShowEmployeeForm(false); }} onAdd={() => setShowSalaryForm(true)} onEdit={() => setShowEmployeeForm(true)} />}
-      {showEmployeeForm && selected && <EmployeeEditDialog employee={selected} onClose={() => setShowEmployeeForm(false)} onSave={employeeUpdated} />}
+      {selected && <EmployeePanel employee={selected} onClose={() => { setSelected(null); setShowSalaryForm(false); setEmployeeFormMode(null); }} onAdd={() => setShowSalaryForm(true)} onEdit={() => setEmployeeFormMode("edit")} />}
+      {employeeFormMode && <EmployeeEditDialog mode={employeeFormMode} employee={employeeFormMode === "edit" ? selected ?? undefined : undefined} onClose={() => setEmployeeFormMode(null)} onSave={employeeSaved} />}
       {showSalaryForm && selected && <SalaryDialog employee={selected} onClose={() => setShowSalaryForm(false)} onSaved={salaryAdded} />}
     </div>
   );
@@ -159,12 +163,12 @@ function EmployeePanel({ employee, onClose, onAdd, onEdit }: { employee: Employe
   return <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="employee-panel" role="dialog" aria-modal="true" aria-label={`${employee.full_name} profile`}><div className="drawer-top"><span>EMPLOYEE PROFILE</span><div className="drawer-actions"><button className="small-action" onClick={onEdit}><Pencil size={14} /> Edit details</button><button aria-label="Close profile" className="icon-button" onClick={onClose}><X size={19} /></button></div></div><div className="profile-header"><div className="profile-avatar">{initials(employee.full_name)}</div><h2>{employee.full_name}</h2><p>{employee.job_title}</p><span className={`status-pill ${employee.status}`}>{employee.status === "active" ? "Active" : employee.status === "leave" ? "On leave" : "Terminated"}</span></div><div className="profile-section"><div className="profile-section-title"><h3>Personal details</h3><span>#{employee.employee_number}</span></div><Detail label="Email" value={employee.email} /><Detail label="Department" value={employee.department} /><Detail label="Location" value={`${countryNames[employee.country_code] ?? employee.country_code} (${employee.country_code})`} /><Detail label="Hire date" value={formatDate(employee.hired_on)} /></div><div className="profile-section compensation-section"><div className="profile-section-title"><div><h3>Compensation</h3><p>Annual base salary</p></div><button className="small-action" onClick={onAdd}><Plus size={15} /> Add change</button></div>{employee.current_salary ? <div className="current-pay"><span>Current salary</span><strong>{formatCurrency(employee.current_salary.amount, employee.current_salary.currency)}</strong><small>{employee.current_salary.currency} · effective {formatDate(employee.current_salary.effective_from)}</small></div> : <div className="empty-pay">No salary record</div>}<h4 className="history-title">Salary history</h4><div className="history-list">{employee.salary_history?.map((record) => <div className="history-row" key={record.id}><span className="history-dot" /><div><strong>{formatCurrency(record.amount, record.currency)}</strong><small>{formatDate(record.effective_from)} · {record.reason}</small></div></div>)}</div></div><div className="drawer-disclaimer">Salary records are retained as history. Changes are effective from the date shown and do not rewrite earlier records.</div></aside></div>;
 }
 
-function EmployeeEditDialog({ employee, onClose, onSave }: { employee: Employee; onClose: () => void; onSave: (input: EmployeeUpdate) => Promise<void> }) {
-  const [form, setForm] = useState<EmployeeUpdate>(() => ({
+function EmployeeEditDialog({ mode, employee, onClose, onSave }: { mode: "create" | "edit"; employee?: Employee; onClose: () => void; onSave: (input: EmployeeUpdate) => Promise<void> }) {
+  const [form, setForm] = useState<EmployeeUpdate>(() => employee ? ({
     employee_number: employee.employee_number, first_name: employee.first_name, last_name: employee.last_name,
     email: employee.email, country_code: employee.country_code, department: employee.department,
     job_title: employee.job_title, status: employee.status, hired_on: employee.hired_on,
-  }));
+  }) : ({ employee_number: "", first_name: "", last_name: "", email: "", country_code: "US", department: "", job_title: "", status: "active", hired_on: new Date().toISOString().slice(0, 10) }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   function change<K extends keyof EmployeeUpdate>(key: K, value: EmployeeUpdate[K]) {
@@ -176,7 +180,7 @@ function EmployeeEditDialog({ employee, onClose, onSave }: { employee: Employee;
     catch (failure) { setError((failure as Error).message); }
     finally { setSaving(false); }
   }
-  return <div className="overlay modal-overlay"><section className="salary-modal employee-edit-modal" role="dialog" aria-modal="true" aria-labelledby="employee-edit-title"><div className="modal-head"><div><div className="eyebrow">EMPLOYEE RECORD</div><h2 id="employee-edit-title">Edit employee details</h2><p>Update identity and organization information.</p></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={19} /></button></div><form onSubmit={submit}><div className="employee-edit-grid"><label>Employee number<input required value={form.employee_number} onChange={(event) => change("employee_number", event.target.value)} /></label><label>Status<select aria-label="Employee status" value={form.status} onChange={(event) => change("status", event.target.value as Employee["status"])}><option value="active">Active</option><option value="leave">On leave</option><option value="terminated">Terminated</option></select></label><label>First name<input required value={form.first_name} onChange={(event) => change("first_name", event.target.value)} /></label><label>Last name<input required value={form.last_name} onChange={(event) => change("last_name", event.target.value)} /></label><label>Email<input type="email" required value={form.email} onChange={(event) => change("email", event.target.value)} /></label><label>Country<select aria-label="Country" value={form.country_code} onChange={(event) => change("country_code", event.target.value)}>{countries.map(([code, name]) => <option value={code} key={code}>{name}</option>)}</select></label><label>Department<input required value={form.department} onChange={(event) => change("department", event.target.value)} /></label><label>Job title<input required value={form.job_title} onChange={(event) => change("job_title", event.target.value)} /></label><label>Hire date<input type="date" required value={form.hired_on} onChange={(event) => change("hired_on", event.target.value)} /></label></div>{error && <div className="form-error" role="alert">{error}</div>}<div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Cancel</button><button className="button-primary" disabled={saving}>{saving ? "Saving…" : "Save employee"}</button></div></form></section></div>;
+  return <div className="overlay modal-overlay"><section className="salary-modal employee-edit-modal" role="dialog" aria-modal="true" aria-labelledby="employee-edit-title"><div className="modal-head"><div><div className="eyebrow">EMPLOYEE RECORD</div><h2 id="employee-edit-title">{mode === "create" ? "Add employee" : "Edit employee details"}</h2><p>{mode === "create" ? "Add a person to the organization directory." : "Update identity and organization information."}</p></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={19} /></button></div><form onSubmit={submit}><div className="employee-edit-grid"><label>Employee number<input required value={form.employee_number} onChange={(event) => change("employee_number", event.target.value)} /></label><label>Status<select aria-label="Employee status" value={form.status} onChange={(event) => change("status", event.target.value as Employee["status"])}><option value="active">Active</option><option value="leave">On leave</option><option value="terminated">Terminated</option></select></label><label>First name<input required value={form.first_name} onChange={(event) => change("first_name", event.target.value)} /></label><label>Last name<input required value={form.last_name} onChange={(event) => change("last_name", event.target.value)} /></label><label>Email<input type="email" required value={form.email} onChange={(event) => change("email", event.target.value)} /></label><label>Country<select aria-label="Country" value={form.country_code} onChange={(event) => change("country_code", event.target.value)}>{countries.map(([code, name]) => <option value={code} key={code}>{name}</option>)}</select></label><label>Department<input required value={form.department} onChange={(event) => change("department", event.target.value)} /></label><label>Job title<input required value={form.job_title} onChange={(event) => change("job_title", event.target.value)} /></label><label>Hire date<input type="date" required value={form.hired_on} onChange={(event) => change("hired_on", event.target.value)} /></label></div>{error && <div className="form-error" role="alert">{error}</div>}<div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Cancel</button><button className="button-primary" disabled={saving}>{saving ? "Saving…" : mode === "create" ? "Create employee" : "Save employee"}</button></div></form></section></div>;
 }
 
 function Detail({ label, value }: { label: string; value: string }) { return <div className="detail-row"><span>{label}</span><strong>{value}</strong></div>; }

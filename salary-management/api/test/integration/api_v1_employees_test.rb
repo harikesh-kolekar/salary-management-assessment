@@ -42,6 +42,36 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     assert_equal "Legal", response.parsed_body.dig("data", 0, "department")
   end
 
+  test "a new employee can be created without a salary record" do
+    assert_difference("Employee.count", 1) do
+      post api_v1_employees_path, params: {
+        employee: {
+          employee_number: "ACME-NEW-1", first_name: "Iris", last_name: "Wong",
+          email: "iris.wong@example.test", country_code: "SG", department: "Legal",
+          job_title: "Counsel", status: "active", hired_on: "2026-10-01"
+        }
+      }, as: :json
+    end
+
+    assert_response :created
+    assert_equal "Iris Wong", response.parsed_body.dig("data", "full_name")
+    assert_nil response.parsed_body.dig("data", "current_salary")
+    assert_equal [], response.parsed_body.dig("data", "salary_history")
+  end
+
+  test "employee creation rejects invalid country and duplicate email" do
+    post api_v1_employees_path, params: {
+      employee: {
+        employee_number: "ACME-NEW-2", first_name: "Iris", last_name: "Wong",
+        email: @employee.email, country_code: "XX", department: "Legal",
+        job_title: "Counsel", status: "active", hired_on: "2026-10-01"
+      }
+    }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal 0, Employee.where(employee_number: "ACME-NEW-2").count
+  end
+
   test "employee update rejects invalid values without changing the record" do
     patch api_v1_employee_path(@employee), params: { employee: { country_code: "XX", status: "unknown" } }, as: :json
 

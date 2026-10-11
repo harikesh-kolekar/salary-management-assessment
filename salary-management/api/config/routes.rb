@@ -8,7 +8,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       get "dashboard", to: "dashboard#show"
-      resources :employees, only: %i[index show update] do
+      resources :employees, only: %i[index show create update] do
         resources :salary_records, only: :create
       end
     end

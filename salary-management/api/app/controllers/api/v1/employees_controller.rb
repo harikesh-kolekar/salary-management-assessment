@@ -35,6 +35,15 @@ module Api
         render json: { data: employee_json(employee, salary_record: employee.current_salary_record, include_history: true) }
       end
 
+      def create
+        employee = Employee.new(employee_params)
+        if employee.save
+          render json: { data: employee_json(employee, include_history: true) }, status: :created
+        else
+          render json: { error: "Validation failed", details: employee.errors.to_hash }, status: :unprocessable_entity
+        end
+      end
+
       def update
         employee = Employee.find(params[:id])
         if employee.update(employee_params)
