@@ -80,8 +80,10 @@ describe("salary management workspace", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/v1/employees" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)).employee;
-        created = { ...employee, ...body, id: 2, full_name: `${body.first_name} ${body.last_name}`, current_salary: null, salary_history: [] };
+        const requestBody = JSON.parse(String(init.body));
+        const body = requestBody.employee;
+        const initialSalary = requestBody.initial_salary;
+        created = { ...employee, ...body, id: 2, full_name: `${body.first_name} ${body.last_name}`, current_salary: initialSalary ? { id: 2, ...initialSalary } : null, salary_history: initialSalary ? [{ id: 2, ...initialSalary }] : [] };
         return new Response(JSON.stringify({ data: created }), { status: 201 });
       }
       if (url === "/api/v1/employees/2") return new Response(JSON.stringify({ data: created }), { status: 200 });
@@ -104,10 +106,15 @@ describe("salary management workspace", () => {
     expect(within(screen.getByLabelText("Department")).getByRole("option", { name: "Engineering" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Department"), { target: { value: "Legal" } });
     fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Counsel" } });
+    fireEvent.click(screen.getByLabelText("Add initial salary"));
+    fireEvent.change(screen.getByLabelText("Initial annual salary"), { target: { value: "90000" } });
+    fireEvent.change(screen.getByLabelText("Initial salary currency"), { target: { value: "SGD" } });
+    fireEvent.change(screen.getByLabelText("Initial salary reason"), { target: { value: "New hire offer" } });
     fireEvent.click(screen.getByRole("button", { name: "Create employee" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/employees", expect.objectContaining({ method: "POST" })));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/employees", expect.objectContaining({ method: "POST", body: expect.stringContaining('"initial_salary"') })));
     expect(await screen.findByRole("dialog", { name: "Iris Wong profile" })).toBeInTheDocument();
-    expect(screen.getByText("No salary record")).toBeInTheDocument();
+    expect(screen.queryByText("No salary record")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Iris Wong profile" })).getAllByText(/90,000/)).toHaveLength(2);
   });
 });

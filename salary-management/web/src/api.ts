@@ -1,4 +1,4 @@
-import type { Dashboard, Employee, EmployeeUpdate, Page, Salary } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Page, Salary, SalaryInput } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -22,10 +22,10 @@ export async function fetchEmployee(id: number) {
   return result.data;
 }
 
-export async function createEmployee(input: EmployeeUpdate) {
+export async function createEmployee(input: EmployeeUpdate, initialSalary?: SalaryInput) {
   const result = await request<{ data: Employee }>("/api/v1/employees", {
     method: "POST",
-    body: JSON.stringify({ employee: input }),
+    body: JSON.stringify({ employee: input, ...(initialSalary ? { initial_salary: initialSalary } : {}) }),
   });
   return result.data;
 }
@@ -42,7 +42,7 @@ export function fetchDashboard() {
   return request<Dashboard>("/api/v1/dashboard");
 }
 
-export async function createSalary(employeeId: number, input: Pick<Salary, "amount" | "currency" | "effective_from" | "reason">) {
+export async function createSalary(employeeId: number, input: SalaryInput) {
   const result = await request<{ data: Salary }>(`/api/v1/employees/${employeeId}/salary_records`, {
     method: "POST",
     body: JSON.stringify({ salary_record: input }),

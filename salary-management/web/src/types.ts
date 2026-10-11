@@ -23,6 +23,7 @@ export type Employee = {
 };
 
 export type EmployeeUpdate = Pick<Employee, "employee_number" | "first_name" | "last_name" | "email" | "country_code" | "department" | "job_title" | "status" | "hired_on">;
+export type SalaryInput = Pick<Salary, "amount" | "currency" | "effective_from" | "reason">;
 
 export type Page<T> = {
   data: T[];

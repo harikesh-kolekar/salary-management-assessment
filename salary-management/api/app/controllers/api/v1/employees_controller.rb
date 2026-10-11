@@ -37,8 +37,20 @@ module Api
 
       def create
         employee = Employee.new(employee_params)
-        if employee.save
-          render json: { data: employee_json(employee, include_history: true) }, status: :created
+        initial_salary = employee.salary_records.build(initial_salary_params) if params[:initial_salary].present?
+        created = false
+
+        Employee.transaction do
+          if employee.save && (initial_salary.nil? || initial_salary.save)
+            created = true
+          else
+            initial_salary&.errors&.each { |error| employee.errors.add(:base, error.full_message) }
+            raise ActiveRecord::Rollback
+          end
+        end
+
+        if created
+          render json: { data: employee_json(employee, salary_record: employee.current_salary_record, include_history: true) }, status: :created
         else
           render json: { error: "Validation failed", details: employee.errors.to_hash }, status: :unprocessable_entity
         end
@@ -57,6 +69,10 @@ module Api
 
       def employee_params
         params.require(:employee).permit(:employee_number, :first_name, :last_name, :email, :country_code, :department, :job_title, :status, :hired_on)
+      end
+
+      def initial_salary_params
+        params.require(:initial_salary).permit(:amount, :currency, :effective_from, :reason)
       end
 
       def current_salaries_for(employee_ids)
