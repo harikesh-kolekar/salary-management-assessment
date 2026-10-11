@@ -1,13 +1,17 @@
 class DashboardSummary
+  def initialize(organization:)
+    @organization = organization
+  end
+
   def call
     date = Date.current
-    roster = Employee.on_roster
+    roster = @organization.employees.on_roster
     current_salaries = SalaryRecord.effective_on(date).joins(:employee).merge(roster)
 
     {
       as_of: date,
       headcount: roster.count,
-      employee_count: Employee.count,
+      employee_count: @organization.employees.count,
       by_country: grouped_metrics(current_salaries, "employees.country_code"),
       by_department: grouped_metrics(current_salaries, "employees.department"),
       by_currency: grouped_metrics(current_salaries, "salary_records.currency")

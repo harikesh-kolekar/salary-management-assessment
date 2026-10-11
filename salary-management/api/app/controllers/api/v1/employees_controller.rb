@@ -2,7 +2,7 @@ module Api
   module V1
     class EmployeesController < BaseController
       def index
-        result = EmployeeDirectory.new(filters: directory_params).call
+        result = EmployeeDirectory.new(organization: current_organization, filters: directory_params).call
         data = result.employees.map do |employee, salary|
           EmployeeSerializer.new(employee, salary_record: salary).as_json
         end
@@ -10,12 +10,13 @@ module Api
       end
 
       def show
-        employee = Employee.find(params[:id])
+        employee = current_organization.employees.find(params[:id])
         render json: { data: EmployeeSerializer.new(employee, salary_record: employee.current_salary_record, include_history: true).as_json }
       end
 
       def create
         result = EmployeeCreator.new(
+          organization: current_organization,
           employee_attributes: employee_params,
           initial_salary_attributes: initial_salary_params_if_present
         ).call
@@ -28,7 +29,7 @@ module Api
       end
 
       def update
-        result = EmployeeUpdater.new(id: params[:id], attributes: employee_params).call
+        result = EmployeeUpdater.new(organization: current_organization, id: params[:id], attributes: employee_params).call
         if result.success?
           render json: { data: EmployeeSerializer.new(result.value, salary_record: result.value.current_salary_record, include_history: true).as_json }
         else

@@ -8,8 +8,12 @@ flowchart LR
   UI -->|JSON, same-origin in deployment| API[Rails 8.1 API]
   API --> DB[(SQLite relational database)]
   subgraph Data
+    O[Organization]
+    U[Manager user]
     E[Employee]
     S[SalaryRecord]
+    O -->|1 to many| U
+    O -->|1 to many| E
     E -->|1 to many| S
   end
   DB --- E
@@ -20,7 +24,8 @@ The app is split into a frontend and API to keep UI iteration independent from t
 
 ## Data choices
 
-- `Employee` stores organization/person directory attributes and a stable unique employee number.
+- `Organization` owns its manager users and employees. `User` is a manager account with a password digest; a signed, expiring bearer token identifies the manager and therefore the tenant for every protected API request.
+- `Employee` stores organization/person directory attributes and a stable employee number unique within its organization.
 - `SalaryRecord` stores an amount, ISO-style currency, effective date, and reason. Each change appends a new record; a unique employee/effective-date constraint avoids ambiguous same-day salaries.
 - The current salary is the latest effective record whose date is on or before the current UTC date. Future-dated changes are visible in history but do not replace current pay early.
 - Salary is stored as fixed-precision decimal. `Intl.NumberFormat` formats amounts in their local currency/locale. Currency groups remain separate for country and department reports; no foreign-exchange source or reporting date was specified.
@@ -33,7 +38,7 @@ The app is split into a frontend and API to keep UI iteration independent from t
 ## Trade-offs and boundaries
 
 - **SQLite for a self-contained exercise:** easy to run and seed with no separate service. It serializes writes and is unsuitable for horizontal replicas or sustained payroll operations; PostgreSQL is the planned production move.
-- **No authentication in this demo:** the persona and assessment data are synthetic, but salary data is sensitive. Authentication, authorization, role design, audit policy, and secure production rollout were kept out of the one-developer MVP and are a hard gate before real data.
+- **Manager-only access:** registration creates an organization and its first manager. Protected employee, salary, and dashboard APIs scope every query and mutation to the authenticated manager’s organization. The SPA stores the signed token in local storage for the demo; production should use a reviewed session strategy, rate limiting, password recovery, access audit, and stronger operational controls before real data.
 - **No FX conversions:** combining amounts across currencies would produce misleading results without a trusted rate source and effective-date policy.
 - **Append-only changes:** users can make a correction by appending a later record; this simple model preserves traceable history. Formal approval, retroactive adjustments, and audit immutability are follow-on product decisions.
 - **Supported country and currency set:** the demo supports eight coherent country/currency pairs. Production must manage a validated country/currency reference and define localized tax/payroll policy separately.

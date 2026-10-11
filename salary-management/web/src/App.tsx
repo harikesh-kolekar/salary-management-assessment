@@ -1,12 +1,29 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Users, X } from "lucide-react";
-import { createEmployee, createSalary, fetchDashboard, fetchEmployee, fetchEmployees, updateEmployee } from "./api";
+import { clearSessionToken, createEmployee, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, login, registerOrganization, updateEmployee } from "./api";
 import { formatCurrency, formatDate } from "./format";
-import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, SalaryInput } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, SalaryInput, SessionUser } from "./types";
 
 type View = "people" | "compensation";
 
 export default function App() {
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    if (!localStorage.getItem("acme-salary-session-token")) {
+      setCheckingSession(false);
+      return;
+    }
+    fetchCurrentUser().then(setUser).catch(() => clearSessionToken()).finally(() => setCheckingSession(false));
+  }, []);
+
+  if (checkingSession) return <div className="auth-loading" role="status">Loading your workspace…</div>;
+  if (!user) return <AuthScreen onAuthenticated={setUser} />;
+  return <Workspace user={user} onLogout={() => { clearSessionToken(); setUser(null); }} />;
+}
+
+function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const [view, setView] = useState<View>("people");
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
@@ -96,11 +113,11 @@ export default function App() {
         <div className="workspace-label">WORKSPACE</div>
         <button className={`nav-item ${view === "people" ? "active" : ""}`} onClick={() => setView("people")}><Users size={18} /> People <span className="nav-count">{dashboard ? dashboard.employee_count.toLocaleString() : "—"}</span></button>
         <button className={`nav-item ${view === "compensation" ? "active" : ""}`} onClick={() => setView("compensation")}><CircleDollarSign size={18} /> Compensation</button>
-        <div className="sidebar-bottom"><div className="sidebar-org"><div className="org-avatar">AC</div><div><strong>ACME Corporation</strong><small>HR workspace</small></div><span className="chevron">⌄</span></div><div className="demo-note"><span className="demo-dot" /> Synthetic demo data</div></div>
+        <div className="sidebar-bottom"><div className="sidebar-org"><div className="org-avatar">{initials(user.organization.name)}</div><div><strong>{user.organization.name}</strong><small>HR workspace</small></div><span className="chevron">⌄</span></div><div className="demo-note"><span className="demo-dot" /> Organization workspace</div></div>
       </aside>
 
       <main className="main-content">
-        <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> {pageTitle}</div><div className="user-chip"><span className="avatar">JD</span><span>Jamie Davis</span><span className="chevron">⌄</span></div></header>
+        <header className="topbar"><div className="breadcrumb">{user.organization.name} <span>/</span> {pageTitle}</div><div className="user-chip"><span className="avatar">{initials(user.full_name)}</span><span>{user.full_name}</span><button className="logout-button" onClick={onLogout}>Sign out</button></div></header>
         <div className="content-wrap">
           <div className="page-heading"><div><div className="eyebrow">PEOPLE OPERATIONS</div><h1>{pageTitle}</h1><p>{view === "people" ? "Your organization, at a glance." : "Understand how your organization pays people."}</p></div><div className="heading-actions">{view === "people" && <button className="button-primary add-employee-button" onClick={() => setEmployeeFormMode("create")}><Plus size={15} /> Add employee</button>}<div className="as-of"><span className="live-dot" /> Data updated just now</div></div></div>
           {error && <div className="error-banner" role="alert">{error}<button onClick={() => setRefreshKey((key) => key + 1)}>Retry</button></div>}
@@ -126,6 +143,30 @@ export default function App() {
       {showSalaryForm && selected && <SalaryDialog employee={selected} onClose={() => setShowSalaryForm(false)} onSaved={salaryAdded} />}
     </div>
   );
+}
+
+function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: SessionUser) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [organizationName, setOrganizationName] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    try {
+      const user = mode === "login"
+        ? await login(email, password)
+        : await registerOrganization({ name: organizationName, manager_name: managerName, email, password, password_confirmation: passwordConfirmation });
+      onAuthenticated(user);
+    } catch (failure) { setError((failure as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  return <main className="auth-page"><section className="auth-card"><div className="auth-brand"><span className="brand-mark">A</span><span>acme<span className="brand-light">people</span></span></div><div className="auth-intro"><div className="eyebrow">SALARY MANAGEMENT</div><h1>{mode === "login" ? "Welcome back" : "Create your organization"}</h1><p>{mode === "login" ? "Sign in to your organization’s employee and compensation workspace." : "Set up an organization and its first manager account."}</p></div><div className="auth-tabs"><button className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Sign in</button><button className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Create organization</button></div><form onSubmit={submit}>{mode === "register" && <><label>Organization name<input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} autoComplete="organization" required maxLength={120} /></label><label>Your name<input value={managerName} onChange={(event) => setManagerName(event.target.value)} autoComplete="name" required maxLength={120} /></label></>}<label>Work email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "register" ? 10 : undefined} /></label>{mode === "register" && <label>Confirm password<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required minLength={10} /></label>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button-primary auth-submit" disabled={saving}>{saving ? "Please wait…" : mode === "login" ? "Sign in" : "Create organization"}</button></form>{mode === "login" && <div className="demo-credentials"><strong>Demo manager</strong><span>hr.manager@acme.test</span><span>Password: acme-demo-2026</span><button type="button" onClick={() => { setEmail("hr.manager@acme.test"); setPassword("acme-demo-2026"); }}>Use demo account</button></div>}</section></main>;
 }
 
 function Stats({ dashboard }: { dashboard: Dashboard | null }) {

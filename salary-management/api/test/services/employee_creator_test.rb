@@ -4,6 +4,7 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
   test "creates the employee and initial salary as one operation" do
     assert_difference(["Employee.count", "SalaryRecord.count"], 1) do
       @result = EmployeeCreator.new(
+        organization: test_organization,
         employee_attributes: employee_attributes,
         initial_salary_attributes: {
           amount: 90_000,
@@ -21,6 +22,7 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
   test "rolls back employee creation when initial salary is invalid" do
     assert_no_difference(["Employee.count", "SalaryRecord.count"]) do
       @result = EmployeeCreator.new(
+        organization: test_organization,
         employee_attributes: employee_attributes,
         initial_salary_attributes: {
           amount: 0,
@@ -49,5 +51,9 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
       status: "active",
       hired_on: Date.current
     }
+  end
+
+  def test_organization
+    @test_organization ||= Organization.create!(name: "Service Test Org", slug: "service-test-org")
   end
 end

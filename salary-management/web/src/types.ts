@@ -25,6 +25,14 @@ export type Employee = {
 export type EmployeeUpdate = Pick<Employee, "employee_number" | "first_name" | "last_name" | "email" | "country_code" | "department" | "job_title" | "status" | "hired_on">;
 export type SalaryInput = Pick<Salary, "amount" | "currency" | "effective_from" | "reason">;
 
+export type SessionUser = {
+  id: number;
+  full_name: string;
+  email: string;
+  role: "manager";
+  organization: { id: number; name: string; slug: string };
+};
+
 export type Page<T> = {
   data: T[];
   meta: { page: number; per_page: number; total: number; total_pages: number };

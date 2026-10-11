@@ -3,6 +3,7 @@ require "test_helper"
 class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
   setup do
     @employee = Employee.create!(
+      organization: @test_organization,
       employee_number: "ACME-TEST-1", first_name: "Maya", last_name: "Chen",
       email: "maya.chen@example.test", country_code: "US", department: "Engineering",
       job_title: "Staff Engineer", status: "active", hired_on: Date.new(2020, 3, 1)

@@ -2,7 +2,8 @@ class EmployeeDirectory
   SORT_COLUMNS = %w[employee_number first_name last_name country_code department job_title status hired_on].freeze
   Result = Struct.new(:employees, :meta, keyword_init: true)
 
-  def initialize(filters:)
+  def initialize(organization:, filters:)
+    @organization = organization
     @filters = filters
   end
 
@@ -25,7 +26,7 @@ class EmployeeDirectory
   private
 
   def filtered_employees
-    employees = Employee.all
+    employees = @organization.employees
     employees = employees.where(status: @filters[:status]) if Employee::STATUSES.include?(@filters[:status])
     country = @filters[:country]
     employees = employees.where(country_code: country.upcase) if country.is_a?(String) && country.present?

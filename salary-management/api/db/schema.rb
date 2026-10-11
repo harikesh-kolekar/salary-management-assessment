@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_11_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_000000) do
   create_table "employees", force: :cascade do |t|
     t.string "employee_number", null: false
     t.string "first_name", null: false
@@ -23,10 +23,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_000000) do
     t.date "hired_on", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "organization_id", null: false
     t.index ["country_code", "department", "status"], name: "index_employees_on_country_code_and_department_and_status"
-    t.index ["email"], name: "index_employees_on_email", unique: true
-    t.index ["employee_number"], name: "index_employees_on_employee_number", unique: true
     t.index ["last_name", "first_name"], name: "index_employees_on_last_name_and_first_name"
+    t.index ["organization_id", "email"], name: "index_employees_on_organization_id_and_email", unique: true
+    t.index ["organization_id", "employee_number"], name: "index_employees_on_organization_id_and_employee_number", unique: true
+    t.index ["organization_id"], name: "index_employees_on_organization_id"
+  end
+
+  create_table "organizations", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
   create_table "salary_records", force: :cascade do |t|
@@ -42,5 +52,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_000000) do
     t.index ["employee_id"], name: "index_salary_records_on_employee_id"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "full_name", null: false
+    t.string "email", null: false
+    t.string "password_salt", null: false
+    t.string "password_digest", null: false
+    t.string "role", default: "manager", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["organization_id"], name: "index_users_on_organization_id"
+  end
+
+  add_foreign_key "employees", "organizations"
   add_foreign_key "salary_records", "employees"
+  add_foreign_key "users", "organizations"
 end

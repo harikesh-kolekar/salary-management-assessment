@@ -1,11 +1,12 @@
 class SalaryRecordCreator
-  def initialize(employee_id:, attributes:)
+  def initialize(organization:, employee_id:, attributes:)
+    @organization = organization
     @employee_id = employee_id
     @attributes = attributes
   end
 
   def call
-    record = Employee.find(@employee_id).salary_records.build(@attributes)
+    record = @organization.employees.find(@employee_id).salary_records.build(@attributes)
     ServiceResult.new(value: record, success: record.save)
   end
 end

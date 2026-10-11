@@ -2,7 +2,7 @@
 
 An HR manager workspace for a synthetic 10,000-person, multi-country workforce. The app combines a Rails JSON API, SQLite relational storage, and a React/TypeScript single-page UI. It supports employee search/filtering, profiles, salary history and effective-dated salary changes, plus headcount and compensation summaries by country, department, and currency.
 
-> Demo data only. This MVP has no authentication or authorization and is not suitable for real employee salary or personal data. Read [the requirements](REQUIREMENTS.md) for the boundary and explicit omissions.
+> This MVP includes manager login and organization-level data isolation, but it is still a demo and is not approved for production employee data. Production use still needs security review, access auditing, backup protection, and operational controls. Read [the requirements](REQUIREMENTS.md) for scope and omissions.
 
 ## Run locally
 
@@ -27,7 +27,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://127.0.0.1:5173>. The Vite development server proxies `/api` to Rails. Seed data is synthetic (`example.test` emails), deterministic, and safe to rerun: existing employee and effective-date records are retained. To rebuild the local demo data from scratch, run `bin/rails db:drop db:create db:migrate db:seed` in `api`.
+Open <http://127.0.0.1:5173>. The Vite development server proxies `/api` to Rails. Seed data is synthetic (`example.test` emails), deterministic, and safe to rerun: existing employee and effective-date records are retained. The demo manager is `hr.manager@acme.test` with password `acme-demo-2026`. Managers can also create a new organization and account from the sign-in screen. To rebuild the local demo data from scratch, run `bin/rails db:drop db:create db:migrate db:seed` in `api`.
 
 ## Tests and production build
 
@@ -40,11 +40,14 @@ pnpm test
 pnpm build
 ```
 
-The Rails tests cover directory search/pagination, profiles, salary validation/history, future effective dates, dashboard grouping, and not-found behavior. The React tests cover currency/date rendering and API-backed directory search.
+The Rails tests cover organization registration, manager login, tenant isolation, directory search/pagination, profiles, salary validation/history, future effective dates, dashboard grouping, and not-found behavior. The React tests cover authentication and organization registration, employee workflows, currency/date rendering, and API-backed directory search.
 
 ## API outline
 
 - `GET /up` — health check.
+- `POST /api/v1/organizations` — register an organization and its first manager; returns a bearer token.
+- `POST /api/v1/session` — manager sign-in; returns a bearer token.
+- `GET /api/v1/session` — validate the current bearer token and return its manager and organization.
 - `GET /api/v1/employees?q=&country=&department=&status=&page=&per_page=&sort=&direction=` — filtered, sorted, bounded page.
 - `GET /api/v1/employees/:id` — profile and salary history.
 - `POST /api/v1/employees` — create a validated employee directory record.
@@ -52,7 +55,7 @@ The Rails tests cover directory search/pagination, profiles, salary validation/h
 - `POST /api/v1/employees/:employee_id/salary_records` — append a validated salary change.
 - `GET /api/v1/dashboard` — headcount and current pay grouped in each native currency.
 
-All aggregate calculations are performed in SQL; salary is never summed or averaged across currencies. Pagination is capped at 100 rows. Salary changes are append-only through the application API, with a unique `(employee_id, effective_from)` constraint and checks for positive amounts, supported currencies, and later effective dates.
+All application endpoints except organization registration, sign-in, and health require a bearer token. Employee searches, profiles, changes, salaries, and dashboard summaries are scoped to the signed-in manager’s organization. All aggregate calculations are performed in SQL; salary is never summed or averaged across currencies. Pagination is capped at 100 rows. Salary changes are append-only through the application API, with a unique `(employee_id, effective_from)` constraint and checks for positive amounts, supported currencies, and later effective dates.
 
 ## Deployable container
 
@@ -63,7 +66,7 @@ export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker compose exec app bundle exec rails db:seed`. Provide a persistent disk for `/app/storage` on a hosting platform. A public demo can use synthetic data, but real employee records require authentication, authorization, access audit, encrypted backups, and an organization-approved privacy review first.
+Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker compose exec app bundle exec rails db:seed`. Provide a persistent disk for `/app/storage` on a hosting platform. A public demo can use synthetic data. Before real employee records are loaded, add access audit logging, encrypted backups, rate limiting, and an organization-approved security and privacy review.
 
 ## Repository map
 

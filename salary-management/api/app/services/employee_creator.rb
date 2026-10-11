@@ -1,11 +1,12 @@
 class EmployeeCreator
-  def initialize(employee_attributes:, initial_salary_attributes: nil)
+  def initialize(organization:, employee_attributes:, initial_salary_attributes: nil)
+    @organization = organization
     @employee_attributes = employee_attributes
     @initial_salary_attributes = initial_salary_attributes
   end
 
   def call
-    employee = Employee.new(@employee_attributes)
+    employee = @organization.employees.build(@employee_attributes)
     initial_salary = employee.salary_records.build(@initial_salary_attributes) if @initial_salary_attributes.present?
     success = false
 

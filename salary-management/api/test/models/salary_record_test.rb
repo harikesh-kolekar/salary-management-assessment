@@ -3,6 +3,7 @@ require "test_helper"
 class SalaryRecordTest < ActiveSupport::TestCase
   setup do
     @employee = Employee.create!(
+      organization: Organization.create!(name: "Salary Test Org", slug: "salary-test-org"),
       employee_number: "ACME-MODEL-1", first_name: "Sam", last_name: "Rivera",
       email: "sam.rivera@example.test", country_code: "GB", department: "Finance",
       job_title: "Analyst", status: "active", hired_on: Date.new(2023, 6, 1)

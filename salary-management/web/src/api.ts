@@ -1,9 +1,23 @@
-import type { Dashboard, Employee, EmployeeUpdate, Page, Salary, SalaryInput } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Page, Salary, SalaryInput, SessionUser } from "./types";
+
+const sessionTokenKey = "acme-salary-session-token";
+
+export function clearSessionToken() {
+  localStorage.removeItem(sessionTokenKey);
+}
+
+function saveSessionToken(token: string) {
+  localStorage.setItem(sessionTokenKey, token);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(localStorage.getItem(sessionTokenKey) ? { Authorization: `Bearer ${localStorage.getItem(sessionTokenKey)}` } : {}),
+      ...init?.headers,
+    },
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -11,6 +25,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(detail || `Request failed (${response.status})`);
   }
   return response.json() as Promise<T>;
+}
+
+type SessionResponse = { token: string; user: SessionUser };
+
+async function persistSession(path: string, body: unknown) {
+  const result = await request<SessionResponse>(path, { method: "POST", body: JSON.stringify(body) });
+  saveSessionToken(result.token);
+  return result.user;
+}
+
+export async function login(email: string, password: string) {
+  return persistSession("/api/v1/session", { email, password });
+}
+
+export async function registerOrganization(input: { name: string; manager_name: string; email: string; password: string; password_confirmation: string }) {
+  return persistSession("/api/v1/organizations", { organization: input });
+}
+
+export async function fetchCurrentUser() {
+  const result = await request<SessionResponse>("/api/v1/session");
+  saveSessionToken(result.token);
+  return result.user;
 }
 
 export function fetchEmployees(params: URLSearchParams) {
