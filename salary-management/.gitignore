@@ -5,6 +5,7 @@
 node_modules/
 web/dist/
 web/coverage/
+web/tsconfig.tsbuildinfo
 api/.bundle/
 api/log/*
 api/tmp/*

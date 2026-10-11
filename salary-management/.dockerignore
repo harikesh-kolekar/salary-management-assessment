@@ -1,0 +1,8 @@
+.git
+.DS_Store
+**/node_modules
+**/dist
+api/storage/*.sqlite3
+api/storage/*.sqlite3-*
+api/log/*
+api/tmp/*
