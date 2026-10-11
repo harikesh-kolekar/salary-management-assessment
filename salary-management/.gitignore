@@ -1,0 +1,15 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+web/dist/
+web/coverage/
+api/.bundle/
+api/log/*
+api/tmp/*
+api/storage/*.sqlite3
+api/storage/*.sqlite3-*
+api/config/master.key
+api/config/credentials/*.key
+api/.env

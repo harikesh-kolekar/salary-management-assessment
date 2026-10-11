@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE before starting}
+      RAILS_SERVE_STATIC_FILES: "1"
+    volumes:
+      - salary_storage:/app/storage
+    command: sh -c "bundle exec rails db:prepare && bundle exec rails server -b 0.0.0.0"
+
+volumes:
+  salary_storage:
