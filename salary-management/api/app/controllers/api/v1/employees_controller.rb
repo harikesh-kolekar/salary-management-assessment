@@ -21,18 +21,18 @@ module Api
         ).call
 
         if result.success?
-          render json: { data: EmployeeSerializer.new(result.employee, salary_record: result.employee.current_salary_record, include_history: true).as_json }, status: :created
+          render json: { data: EmployeeSerializer.new(result.value, salary_record: result.value.current_salary_record, include_history: true).as_json }, status: :created
         else
-          render json: { error: "Validation failed", details: result.employee.errors.to_hash }, status: :unprocessable_entity
+          render_validation_failure(result.value)
         end
       end
 
       def update
         result = EmployeeUpdater.new(id: params[:id], attributes: employee_params).call
         if result.success?
-          render json: { data: EmployeeSerializer.new(result.employee, salary_record: result.employee.current_salary_record, include_history: true).as_json }
+          render json: { data: EmployeeSerializer.new(result.value, salary_record: result.value.current_salary_record, include_history: true).as_json }
         else
-          render json: { error: "Validation failed", details: result.employee.errors.to_hash }, status: :unprocessable_entity
+          render_validation_failure(result.value)
         end
       end
 

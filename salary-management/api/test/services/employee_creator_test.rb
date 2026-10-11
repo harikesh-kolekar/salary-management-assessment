@@ -15,7 +15,7 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
     end
 
     assert @result.success?
-    assert_equal 90_000, @result.employee.current_salary_record.amount
+    assert_equal 90_000, @result.value.current_salary_record.amount
   end
 
   test "rolls back employee creation when initial salary is invalid" do
@@ -32,7 +32,7 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
     end
 
     assert_not @result.success?
-    assert_predicate @result.employee.errors, :any?
+    assert_predicate @result.value.errors, :any?
   end
 
   private

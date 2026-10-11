@@ -1,10 +1,4 @@
 class EmployeeCreator
-  Result = Struct.new(:employee, :success, keyword_init: true) do
-    def success?
-      success
-    end
-  end
-
   def initialize(employee_attributes:, initial_salary_attributes: nil)
     @employee_attributes = employee_attributes
     @initial_salary_attributes = initial_salary_attributes
@@ -24,6 +18,6 @@ class EmployeeCreator
       end
     end
 
-    Result.new(employee:, success:)
+    ServiceResult.new(value: employee, success:)
   end
 end

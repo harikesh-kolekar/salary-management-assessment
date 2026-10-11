@@ -4,9 +4,9 @@ module Api
       def create
         result = SalaryRecordCreator.new(employee_id: params[:employee_id], attributes: salary_record_params).call
         if result.success?
-          render json: { data: SalarySerializer.new(result.record).as_json }, status: :created
+          render json: { data: SalarySerializer.new(result.value).as_json }, status: :created
         else
-          render json: { error: "Validation failed", details: result.record.errors.to_hash }, status: :unprocessable_entity
+          render_validation_failure(result.value)
         end
       end
 
