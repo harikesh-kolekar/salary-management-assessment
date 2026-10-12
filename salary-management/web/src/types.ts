@@ -29,8 +29,13 @@ export type SessionUser = {
   id: number;
   full_name: string;
   email: string;
-  role: "manager";
+  role: "admin" | "hr_manager";
   organization: { id: number; name: string; slug: string };
+};
+
+export type ReferenceData = {
+  countries: { code: string; name: string }[];
+  departments: { code: string; name: string; hr_manager: { id: number; full_name: string } }[];
 };
 
 export type Page<T> = {

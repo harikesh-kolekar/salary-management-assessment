@@ -1,4 +1,4 @@
-import type { Dashboard, Employee, EmployeeUpdate, Page, Salary, SalaryInput, SessionUser } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Page, ReferenceData, Salary, SalaryInput, SessionUser } from "./types";
 
 const sessionTokenKey = "acme-salary-session-token";
 
@@ -76,6 +76,10 @@ export async function updateEmployee(id: number, input: EmployeeUpdate) {
 
 export function fetchDashboard() {
   return request<Dashboard>("/api/v1/dashboard");
+}
+
+export function fetchReferenceData() {
+  return request<ReferenceData>("/api/v1/reference_data");
 }
 
 export async function createSalary(employeeId: number, input: SalaryInput) {

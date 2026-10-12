@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-const sessionUser = { id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "manager" as const, organization: { id: 1, name: "ACME Corporation", slug: "acme-corporation" } };
+const sessionUser = { id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "admin" as const, organization: { id: 1, name: "ACME Corporation", slug: "acme-corporation" } };
+const referenceData = { countries: [{ code: "US", name: "United States" }, { code: "GB", name: "United Kingdom" }, { code: "SG", name: "Singapore" }], departments: ["Engineering", "Finance", "People", "Sales", "Operations", "Legal", "Marketing", "Product", "Support"].map((name) => ({ code: name.toUpperCase().replaceAll(" ", "_"), name, hr_manager: { id: 1, full_name: "Jamie Davis" } })) };
 
 const employee = {
   id: 1, employee_number: "ACME-00001", first_name: "Avery", last_name: "Kim", full_name: "Avery Kim",
@@ -20,6 +21,7 @@ describe("salary management workspace", () => {
       if (String(input) === "/api/v1/session" && init?.method === "POST") {
         return new Response(JSON.stringify({ token: "signed-in-token", user: sessionUser }), { status: 200 });
       }
+      if (String(input) === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
       if (String(input).startsWith("/api/v1/employees")) return new Response(JSON.stringify({ data: [], meta: { page: 1, per_page: 25, total: 0, total_pages: 0 } }), { status: 200 });
       return new Response(JSON.stringify({ as_of: "2026-10-11", headcount: 0, employee_count: 0, by_country: [], by_department: [], by_currency: [] }), { status: 200 });
     });
@@ -42,6 +44,7 @@ describe("salary management workspace", () => {
       if (String(input) === "/api/v1/organizations" && init?.method === "POST") {
         return new Response(JSON.stringify({ token: "organization-token", user: registeredUser }), { status: 201 });
       }
+      if (String(input) === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
       if (String(input).startsWith("/api/v1/employees")) return new Response(JSON.stringify({ data: [], meta: { page: 1, per_page: 25, total: 0, total_pages: 0 } }), { status: 200 });
       return new Response(JSON.stringify({ as_of: "2026-10-11", headcount: 0, employee_count: 0, by_country: [], by_department: [], by_currency: [] }), { status: 200 });
     });
@@ -65,6 +68,7 @@ describe("salary management workspace", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "test-session-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
       if (url.startsWith("/api/v1/employees")) {
         const filtered = url.includes("q=ACME-00001");
         return new Response(JSON.stringify({ data: filtered ? [employee] : [employee], meta: { page: 1, per_page: 25, total: 1, total_pages: 1 } }), { status: 200 });
@@ -86,6 +90,7 @@ describe("salary management workspace", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "test-session-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
       if (url === "/api/v1/employees/1" && init?.method === "PATCH") {
         const body = JSON.parse(String(init.body)).employee;
         updatePayload = body;
@@ -131,6 +136,7 @@ describe("salary management workspace", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "test-session-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
       if (url === "/api/v1/employees" && init?.method === "POST") {
         const requestBody = JSON.parse(String(init.body));
         const body = requestBody.employee;
