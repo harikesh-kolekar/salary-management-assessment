@@ -50,6 +50,39 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     assert_equal 2, response.parsed_body.fetch("headcount")
   end
 
+  test "HR manager reference data is limited to managed departments in their organization" do
+    hr_manager = create_hr_manager("reference-hr@example.test")
+    engineering = @test_organization.departments.find_by!(name: "Engineering")
+    engineering.update!(hr_manager: hr_manager)
+    finance = @test_organization.departments.find_by!(name: "Finance")
+
+    other_organization = Organization.create!(name: "Different Org", slug: "different-org")
+    other_manager = other_organization.users.create!(
+      full_name: "Different HR", email: "different-hr@example.test", role: "hr_manager",
+      password_salt: "different-hr-salt", password_digest: User.digest_password("testing-password", "different-hr-salt")
+    )
+    other_organization.departments.create!(name: "Engineering", hr_manager: other_manager)
+    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+
+    get "/api/v1/reference_data"
+
+    assert_response :success
+    department_names = response.parsed_body.fetch("departments").map { |department| department.fetch("name") }
+    assert_equal ["Engineering"], department_names
+    assert_not_includes department_names, finance.name
+  end
+
+  test "HR manager cannot move a visible employee to a department they do not manage" do
+    hr_manager = create_hr_manager("update-hr@example.test")
+    @test_organization.departments.find_by!(name: "Engineering").update!(hr_manager: hr_manager)
+    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+
+    patch api_v1_employee_path(@employee), params: { employee: { department: "Finance" } }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "Engineering", @employee.reload.department.name
+  end
+
   test "HR managers cannot create employees outside their assigned departments" do
     hr_manager = create_hr_manager("limited-hr@example.test")
     Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)

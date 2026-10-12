@@ -82,6 +82,12 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_not @test_organization.departments.exists?(name: "Restricted")
+
+    outside_department = other.departments.create!(name: "Outside Legal", hr_manager: outside_manager)
+    patch api_v1_department_path(outside_department), params: { department: { name: "Hijacked" } }, as: :json
+
+    assert_response :not_found
+    assert_equal "Outside Legal", outside_department.reload.name
   end
 
   test "HR managers cannot create users or departments" do
