@@ -12,17 +12,26 @@ module Api
       attr_reader :current_user
 
       def current_organization
-        current_user.organization
+        @current_organization ||= current_user.organization
       end
 
       def visible_employees
-        employees = current_organization.employees
-        employees = employees.where(department_id: current_user.managed_departments.select(:id)) if current_user.hr_manager?
-        employees
+        @visible_employees ||= begin
+          employees = current_organization.employees
+          if current_user.hr_manager?
+            employees.where(department_id: current_user.managed_departments.select(:id))
+          else
+            employees
+          end
+        end
       end
 
       def visible_departments
-        current_user.admin? ? current_organization.departments : current_user.managed_departments.where(organization_id: current_organization.id)
+        @visible_departments ||= if current_user.admin?
+          current_organization.departments
+        else
+          current_user.managed_departments.where(organization_id: current_organization.id)
+        end
       end
 
       def require_admin!
@@ -38,7 +47,6 @@ module Api
       def render_validation_failure(record)
         render json: { error: "Validation failed", details: record.errors.to_hash }, status: :unprocessable_entity
       end
-
     end
   end
 end
