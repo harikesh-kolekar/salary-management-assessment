@@ -12,20 +12,41 @@ last_names = %w[Kim Patel Garcia Chen Singh Brown Wilson Martin Davis Moore Tayl
 titles = ["Analyst", "Associate", "Senior Associate", "Manager", "Senior Manager", "Director", "Engineer", "Lead"]
 timestamp = Time.utc(2025, 1, 1)
 organization = Organization.find_or_create_by!(slug: "acme-corporation") { |record| record.name = "ACME Corporation" }
-manager = organization.admin_user || organization.users.find_or_initialize_by(email: "hr.manager@acme.test")
-if manager.new_record? || manager.email.end_with?("@example.invalid")
-  manager.full_name = "Jamie Davis"
-  manager.role = "admin"
-  manager.password = "acme-demo-2026"
-  manager.password_confirmation = "acme-demo-2026"
-  manager.save!
+demo_password = "123456789"
+seed_demo_user = lambda do |email, full_name, role|
+  user = if role == "admin"
+    organization.admin_user || organization.users.find_or_initialize_by(email:)
+  else
+    organization.users.find_or_initialize_by(email:)
+  end
+  user.assign_attributes(email:, full_name:, role:)
+  # The requested demo credential is shorter than the interactive account
+  # password minimum. Seed its digest directly so this exception stays limited
+  # to the explicitly seeded demo accounts.
+  user.password_salt = SecureRandom.hex(16)
+  user.password_digest = User.digest_password(demo_password, user.password_salt)
+  user.save!
+  user
 end
+admin = seed_demo_user.call("hr.manager@acme.test", "Jamie Davis", "admin")
+hr_managers = {
+  "engineering.hr@acme.test" => seed_demo_user.call("engineering.hr@acme.test", "Morgan Lee", "hr_manager"),
+  "finance.hr@acme.test" => seed_demo_user.call("finance.hr@acme.test", "Taylor Patel", "hr_manager"),
+  "people.hr@acme.test" => seed_demo_user.call("people.hr@acme.test", "Jordan Chen", "hr_manager")
+}
 countries.each do |code, details|
   Country.find_or_create_by!(code:) { |country| country.name = details.fetch(:name) }
 end
 departments.each do |name|
   department = organization.departments.find_or_initialize_by(name:)
-  department.hr_manager = manager
+  department.hr_manager = case name
+  when "Engineering", "Product", "Support"
+    hr_managers.fetch("engineering.hr@acme.test")
+  when "Finance", "Sales"
+    hr_managers.fetch("finance.hr@acme.test")
+  else
+    hr_managers.fetch("people.hr@acme.test")
+  end
   department.save! if department.new_record? || department.changed?
 end
 country_ids = Country.pluck(:code, :id).to_h
@@ -68,3 +89,4 @@ end
 SalaryRecord.insert_all(records, unique_by: :index_salary_records_on_employee_id_and_effective_from)
 
 puts "Seeded #{organization.employees.count} synthetic employees for #{organization.name} and #{SalaryRecord.joins(:employee).where(employees: { organization_id: organization.id }).count} salary records."
+puts "Demo users (password: #{demo_password}): #{[admin, *hr_managers.values].map { |user| "#{user.role}=#{user.email}" }.join(", ")}"
