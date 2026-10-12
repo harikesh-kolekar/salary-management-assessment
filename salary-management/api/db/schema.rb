@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_010200) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_030000) do
   create_table "countries", force: :cascade do |t|
     t.string "code", limit: 2, null: false
     t.string "name", null: false
@@ -62,6 +62,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_010200) do
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
+  create_table "refresh_tokens", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "token_digest", null: false
+    t.string "family_id", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id"], name: "index_refresh_tokens_on_family_id"
+    t.index ["token_digest"], name: "index_refresh_tokens_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_refresh_tokens_on_user_id"
+  end
+
   create_table "salary_records", force: :cascade do |t|
     t.integer "employee_id", null: false
     t.decimal "amount", precision: 15, scale: 2, null: false
@@ -94,6 +107,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_010200) do
   add_foreign_key "employees", "countries"
   add_foreign_key "employees", "departments"
   add_foreign_key "employees", "organizations"
+  add_foreign_key "refresh_tokens", "users"
   add_foreign_key "salary_records", "employees"
   add_foreign_key "users", "organizations"
 end

@@ -1,6 +1,8 @@
 import type { Dashboard, Employee, EmployeeUpdate, Page, ReferenceData, Salary, SalaryInput, SessionUser } from "./types";
 
 const sessionTokenKey = "acme-salary-session-token";
+const refreshPath = "/api/v1/session/refresh";
+let refreshInFlight: Promise<string | null> | null = null;
 
 export function clearSessionToken() {
   localStorage.removeItem(sessionTokenKey);
@@ -11,20 +13,51 @@ function saveSessionToken(token: string) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const send = (token = localStorage.getItem(sessionTokenKey)) => fetch(path, {
     ...init,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      ...(localStorage.getItem(sessionTokenKey) ? { Authorization: `Bearer ${localStorage.getItem(sessionTokenKey)}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
+  let response = await send();
+  const isPublicAuthenticationRequest = (path === "/api/v1/session" && init?.method === "POST") || (path === "/api/v1/organizations" && init?.method === "POST");
+  if (response.status === 401 && localStorage.getItem(sessionTokenKey) && path !== refreshPath && !isPublicAuthenticationRequest) {
+    const refreshedToken = await refreshAccessToken();
+    if (refreshedToken) response = await send(refreshedToken);
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const detail = body.details ? Object.values(body.details).flat().join(" · ") : body.error;
     throw new Error(detail || `Request failed (${response.status})`);
   }
   return response.json() as Promise<T>;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(refreshPath, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+    }).then(async (response) => {
+      if (!response.ok) {
+        clearSessionToken();
+        return null;
+      }
+      const result = await response.json() as { token: string };
+      saveSessionToken(result.token);
+      return result.token;
+    }).catch(() => {
+      clearSessionToken();
+      return null;
+    }).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 type SessionResponse = { token: string; user: SessionUser };
@@ -47,6 +80,14 @@ export async function fetchCurrentUser() {
   const result = await request<SessionResponse>("/api/v1/session");
   saveSessionToken(result.token);
   return result.user;
+}
+
+export async function logout() {
+  try {
+    await fetch("/api/v1/session", { method: "DELETE", credentials: "same-origin" });
+  } finally {
+    clearSessionToken();
+  }
 }
 
 export function fetchEmployees(params: URLSearchParams) {

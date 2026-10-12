@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { fetchEmployees } from "./api";
 
 const sessionUser = { id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "admin" as const, organization: { id: 1, name: "ACME Corporation", slug: "acme-corporation" } };
 const referenceData = { countries: [{ code: "US", name: "United States" }, { code: "GB", name: "United Kingdom" }, { code: "SG", name: "Singapore" }], departments: ["Engineering", "Finance", "People", "Sales", "Operations", "Legal", "Marketing", "Product", "Support"].map((name, index) => ({ id: index + 1, code: name.toUpperCase().replaceAll(" ", "_"), name, hr_manager: { id: 1, full_name: "Jamie Davis" } })), hr_managers: [{ id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "admin" as "admin" | "hr_manager" }] };
@@ -15,6 +16,30 @@ const employee = {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("salary management workspace", () => {
+  it("refreshes an expired access token and retries the failed API request", async () => {
+    localStorage.setItem("acme-salary-session-token", "expired-access-token");
+    let employeeRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/v1/session/refresh") return new Response(JSON.stringify({ token: "fresh-access-token" }), { status: 200 });
+      if (url.startsWith("/api/v1/employees")) {
+        employeeRequests += 1;
+        if (employeeRequests === 1) return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401 });
+        expect(init?.headers).toMatchObject({ Authorization: "Bearer fresh-access-token" });
+        return new Response(JSON.stringify({ data: [], meta: { page: 1, per_page: 25, total: 0, total_pages: 0 } }), { status: 200 });
+      }
+      return new Response("{}", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchEmployees(new URLSearchParams());
+
+    expect(result.data).toEqual([]);
+    expect(employeeRequests).toBe(2);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/session/refresh", expect.objectContaining({ method: "POST", credentials: "same-origin" }));
+    expect(localStorage.getItem("acme-salary-session-token")).toBe("fresh-access-token");
+  });
+
   it("signs in a manager and opens their organization workspace", async () => {
     localStorage.clear();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

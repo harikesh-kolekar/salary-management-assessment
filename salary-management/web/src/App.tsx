@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Settings, Users, UserPlus, X } from "lucide-react";
-import { clearSessionToken, createDepartment, createEmployee, createHrManager, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, fetchReferenceData, login, registerOrganization, updateDepartment, updateEmployee } from "./api";
+import { clearSessionToken, createDepartment, createEmployee, createHrManager, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, fetchReferenceData, login, logout, registerOrganization, updateDepartment, updateEmployee } from "./api";
 import { formatCurrency, formatDate } from "./format";
 import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, ReferenceData, SalaryInput, SessionUser } from "./types";
 
@@ -20,7 +20,7 @@ export default function App() {
 
   if (checkingSession) return <div className="auth-loading" role="status">Loading your workspace…</div>;
   if (!user) return <AuthScreen onAuthenticated={setUser} />;
-  return <Workspace user={user} onLogout={() => { clearSessionToken(); setUser(null); }} />;
+  return <Workspace user={user} onLogout={() => { void logout(); setUser(null); }} />;
 }
 
 function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {

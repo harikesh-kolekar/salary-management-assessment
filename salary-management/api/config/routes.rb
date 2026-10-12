@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resource :session, only: %i[create show], controller: :sessions
+      post "session/refresh", to: "sessions#refresh", as: :refresh_session
+      delete "session", to: "sessions#destroy"
       resources :organizations, only: :create
       get "reference_data", to: "reference_data#show"
       resources :hr_managers, only: :create

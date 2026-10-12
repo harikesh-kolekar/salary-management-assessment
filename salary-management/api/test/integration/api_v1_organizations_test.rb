@@ -35,6 +35,26 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_equal @test_organization.id, response.parsed_body.dig("user", "organization", "id")
   end
 
+  test "refresh rotates the HttpOnly refresh cookie and logout invalidates it" do
+    post api_v1_session_path, params: { email: @test_user.email, password: "testing-password" }, as: :json
+    assert_response :success
+    original_refresh_token = response.cookies.fetch("salary_refresh_token")
+    assert_not_empty original_refresh_token
+
+    post "/api/v1/session/refresh"
+
+    assert_response :success
+    assert_equal 3, response.parsed_body.fetch("token").split(".").length
+    rotated_refresh_token = response.cookies.fetch("salary_refresh_token")
+    assert_not_equal original_refresh_token, rotated_refresh_token
+
+    delete api_v1_session_path
+
+    assert_response :no_content
+    post "/api/v1/session/refresh"
+    assert_response :unauthorized
+  end
+
   test "manager login does not accept an incorrect password" do
     post api_v1_session_path, params: { email: @test_user.email, password: "incorrect-password" }, as: :json
 

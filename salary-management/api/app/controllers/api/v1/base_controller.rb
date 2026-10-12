@@ -1,6 +1,9 @@
 module Api
   module V1
     class BaseController < ApplicationController
+      REFRESH_COOKIE = "salary_refresh_token".freeze
+      REFRESH_COOKIE_PATH = "/api/v1/session".freeze
+
       before_action :authenticate_user!
 
       rescue_from ActiveRecord::RecordNotFound do
@@ -36,6 +39,21 @@ module Api
 
       def require_admin!
         head :forbidden unless current_user.admin?
+      end
+
+      def set_refresh_cookie(token)
+        cookies[REFRESH_COOKIE] = {
+          value: token,
+          httponly: true,
+          secure: Rails.env.production?,
+          same_site: :lax,
+          path: REFRESH_COOKIE_PATH,
+          expires: Sessions::RefreshTokenManager::LIFETIME.from_now
+        }
+      end
+
+      def clear_refresh_cookie
+        cookies.delete(REFRESH_COOKIE, path: REFRESH_COOKIE_PATH, secure: Rails.env.production?, same_site: :lax)
       end
 
       def authenticate_user!

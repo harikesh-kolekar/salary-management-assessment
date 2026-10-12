@@ -7,6 +7,7 @@ class User < ApplicationRecord
 
   belongs_to :organization
   has_many :managed_departments, class_name: "Department", foreign_key: :hr_manager_id, dependent: :restrict_with_error
+  has_many :refresh_tokens, dependent: :delete_all
 
   attr_accessor :password, :password_confirmation
 

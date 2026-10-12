@@ -5,7 +5,7 @@ module Sessions
     ALGORITHM = "HS256".freeze
     ISSUER = "salary-management".freeze
     AUDIENCE = "salary-management-api".freeze
-    LIFETIME = 12.hours
+    LIFETIME = 15.minutes
 
     def self.issue(user)
       now = Time.current.to_i

@@ -8,6 +8,8 @@ module Api
         return render_validation_failure(result.user) unless result.success?
 
         user = result.user
+        refresh = Sessions::RefreshTokenManager.issue(user)
+        set_refresh_cookie(refresh.refresh_token)
         render json: {
           token: Sessions::JwtAuthenticator.issue(user),
           user: {
