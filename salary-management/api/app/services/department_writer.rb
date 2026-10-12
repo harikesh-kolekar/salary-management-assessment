@@ -1,15 +1,17 @@
-class DepartmentUpdater
-  def initialize(organization:, id:, attributes:)
+class DepartmentWriter
+  def initialize(organization:, attributes:, id: nil)
     @organization = organization
-    @id = id
     @attributes = attributes.to_h.symbolize_keys
+    @id = id
   end
 
   def call
-    department = @organization.departments.find(@id)
+    department = @id ? @organization.departments.find(@id) : @organization.departments.build
     department.assign_attributes(@attributes.except(:hr_manager_id))
-    assign_hr_manager(department) if @attributes.key?(:hr_manager_id)
-    ServiceResult.new(value: department, success: department.errors.empty? && department.save)
+    assign_hr_manager(department) if @id.nil? || @attributes.key?(:hr_manager_id)
+
+    success = department.errors.empty? && department.save
+    ServiceResult.new(value: department, success:)
   end
 
   private

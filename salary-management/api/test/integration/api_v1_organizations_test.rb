@@ -69,6 +69,12 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal manager_id, response.parsed_body.dig("data", "hr_manager", "id")
     assert_equal manager_id, Department.find(department_id).hr_manager_id
+
+    patch api_v1_department_path(department_id), params: { department: { name: "Legal Services" } }, as: :json
+
+    assert_response :success
+    assert_equal "Legal Services", response.parsed_body.dig("data", "name")
+    assert_equal manager_id, response.parsed_body.dig("data", "hr_manager", "id")
   end
 
   test "admin endpoints cannot assign users from another organization" do
