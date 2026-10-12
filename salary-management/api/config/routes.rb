@@ -10,6 +10,8 @@ Rails.application.routes.draw do
       resource :session, only: %i[create show], controller: :sessions
       resources :organizations, only: :create
       get "reference_data", to: "reference_data#show"
+      resources :hr_managers, only: :create
+      resources :departments, only: %i[create update]
       get "dashboard", to: "dashboard#show"
       resources :employees, only: %i[index show create update] do
         resources :salary_records, only: :create

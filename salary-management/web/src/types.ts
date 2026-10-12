@@ -35,7 +35,8 @@ export type SessionUser = {
 
 export type ReferenceData = {
   countries: { code: string; name: string }[];
-  departments: { code: string; name: string; hr_manager: { id: number; full_name: string } }[];
+  departments: { code: string; id: number; name: string; hr_manager: { id: number; full_name: string } }[];
+  hr_managers: { id: number; full_name: string; email: string; role: "admin" | "hr_manager" }[];
 };
 
 export type Page<T> = {

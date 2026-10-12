@@ -48,6 +48,56 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_includes duplicate.errors[:role], "is limited to one admin per organization"
   end
 
+  test "admin can add an HR manager and department, and reassign departments" do
+    post api_v1_hr_managers_path, params: {
+      hr_manager: { full_name: "Taylor HR", email: "taylor.hr@example.test", password: "testing-password", password_confirmation: "testing-password" }
+    }, as: :json
+
+    assert_response :created
+    manager_id = response.parsed_body.dig("data", "id")
+    assert_equal "hr_manager", response.parsed_body.dig("data", "role")
+
+    post api_v1_departments_path, params: { department: { name: "Compliance", hr_manager_id: manager_id } }, as: :json
+
+    assert_response :created
+    department_id = response.parsed_body.dig("data", "id")
+    assert_equal "COMPLIANCE", response.parsed_body.dig("data", "code")
+    assert_equal manager_id, response.parsed_body.dig("data", "hr_manager", "id")
+
+    patch api_v1_department_path(@test_organization.departments.find_by!(name: "Legal")), params: { department: { hr_manager_id: manager_id } }, as: :json
+
+    assert_response :success
+    assert_equal manager_id, response.parsed_body.dig("data", "hr_manager", "id")
+    assert_equal manager_id, Department.find(department_id).hr_manager_id
+  end
+
+  test "admin endpoints cannot assign users from another organization" do
+    other = Organization.create!(name: "Outside Org", slug: "outside-org")
+    outside_manager = other.users.create!(
+      full_name: "Outside HR", email: "outside-hr@example.test", role: "hr_manager",
+      password_salt: "outside-manager-salt", password_digest: User.digest_password("testing-password", "outside-manager-salt")
+    )
+
+    post api_v1_departments_path, params: { department: { name: "Restricted", hr_manager_id: outside_manager.id } }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_not @test_organization.departments.exists?(name: "Restricted")
+  end
+
+  test "HR managers cannot create users or departments" do
+    hr_manager = @test_organization.users.create!(
+      full_name: "Limited HR", email: "limited-hr@example.test", role: "hr_manager",
+      password_salt: "limited-hr-salt", password_digest: User.digest_password("testing-password", "limited-hr-salt")
+    )
+    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+
+    post api_v1_hr_managers_path, params: { hr_manager: { full_name: "Another HR", email: "another-hr@example.test", password: "testing-password", password_confirmation: "testing-password" } }, as: :json
+    assert_response :forbidden
+
+    post api_v1_departments_path, params: { department: { name: "Unauthorized" } }, as: :json
+    assert_response :forbidden
+  end
+
   test "organization data endpoints require authentication" do
     Thread.current[:salary_management_test_token] = nil
 

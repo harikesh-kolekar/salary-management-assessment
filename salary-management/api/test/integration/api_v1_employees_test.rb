@@ -21,6 +21,50 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     assert_equal "ENGINEERING", engineering.fetch("code")
     assert_equal @test_user.id, engineering.dig("hr_manager", "id")
     assert_equal "Test Manager", engineering.dig("hr_manager", "full_name")
+    assert_includes payload.fetch("hr_managers").map { |manager| manager.fetch("id") }, @test_user.id
+  end
+
+  test "HR managers see employees and compensation only in departments they manage" do
+    hr_manager = create_hr_manager("engineering-hr@example.test")
+    engineering = @test_organization.departments.find_by!(name: "Engineering")
+    engineering.update!(hr_manager: hr_manager)
+    legal = @test_organization.departments.find_by!(name: "Legal")
+    legal.update!(hr_manager: hr_manager)
+    finance = @test_organization.departments.find_by!(name: "Finance")
+    outside = create_employee("ACME-FIN-1", finance)
+    visible = [@employee, create_employee("ACME-LEGAL-1", legal)]
+    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+
+    get api_v1_employees_path
+    assert_equal visible.map(&:id).sort, response.parsed_body.fetch("data").map { |row| row.fetch("id") }.sort
+
+    get api_v1_employee_path(outside)
+    assert_response :not_found
+    post api_v1_employee_salary_records_path(outside), params: {
+      salary_record: { amount: "120000", currency: "USD", effective_from: Date.current + 1, reason: "Raise" }
+    }, as: :json
+    assert_response :not_found
+
+    get api_v1_dashboard_path
+    assert_equal 2, response.parsed_body.fetch("employee_count")
+    assert_equal 2, response.parsed_body.fetch("headcount")
+  end
+
+  test "HR managers cannot create employees outside their assigned departments" do
+    hr_manager = create_hr_manager("limited-hr@example.test")
+    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+
+    assert_no_difference("Employee.count") do
+      post api_v1_employees_path, params: {
+        employee: {
+          employee_number: "ACME-OUTSIDE-1", first_name: "Rae", last_name: "Kim",
+          email: "rae.kim@example.test", country_code: "US", department: "Finance",
+          job_title: "Analyst", status: "active", hired_on: Date.current
+        }
+      }, as: :json
+    end
+
+    assert_response :unprocessable_entity
   end
 
   test "directory searches and paginates employee records" do
@@ -184,5 +228,24 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
     assert_equal "Not found", response.parsed_body["error"]
+  end
+
+  private
+
+  def create_hr_manager(email)
+    salt = "salt-#{email}"
+    @test_organization.users.create!(
+      full_name: "Assigned HR", email:, role: "hr_manager", password_salt: salt,
+      password_digest: User.digest_password("testing-password", salt)
+    )
+  end
+
+  def create_employee(number, department)
+    @test_organization.employees.create!(
+      employee_number: number, first_name: "Robin", last_name: "Lee", email: "#{number.downcase}@example.test",
+      country: Country.find_by!(code: "US"), department:, job_title: "Analyst", status: "active", hired_on: Date.current
+    ).tap do |employee|
+      employee.salary_records.create!(amount: 100_000, currency: "USD", effective_from: Date.current, reason: "Initial")
+    end
   end
 end

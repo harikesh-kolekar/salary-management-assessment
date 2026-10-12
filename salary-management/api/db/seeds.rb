@@ -12,8 +12,8 @@ last_names = %w[Kim Patel Garcia Chen Singh Brown Wilson Martin Davis Moore Tayl
 titles = ["Analyst", "Associate", "Senior Associate", "Manager", "Senior Manager", "Director", "Engineer", "Lead"]
 timestamp = Time.utc(2025, 1, 1)
 organization = Organization.find_or_create_by!(slug: "acme-corporation") { |record| record.name = "ACME Corporation" }
-manager = organization.users.find_or_initialize_by(email: "hr.manager@acme.test")
-if manager.new_record?
+manager = organization.admin_user || organization.users.find_or_initialize_by(email: "hr.manager@acme.test")
+if manager.new_record? || manager.email.end_with?("@example.invalid")
   manager.full_name = "Jamie Davis"
   manager.role = "admin"
   manager.password = "acme-demo-2026"

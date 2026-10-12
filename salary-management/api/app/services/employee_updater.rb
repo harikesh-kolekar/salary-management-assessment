@@ -1,6 +1,7 @@
 class EmployeeUpdater
-  def initialize(organization:, id:, attributes:)
+  def initialize(organization:, id:, attributes:, departments: nil)
     @organization = organization
+    @departments = departments || organization.departments
     @id = id
     @attributes = attributes
   end
@@ -13,7 +14,7 @@ class EmployeeUpdater
       employee.errors.add(:country_code, "is invalid") unless employee.country
     end
     if attributes.key?(:department)
-      employee.department = @organization.departments.find_by(name: attributes.delete(:department))
+      employee.department = @departments.find_by(name: attributes.delete(:department))
       employee.errors.add(:department, "is not configured for this organization") unless employee.department
     end
     employee.assign_attributes(attributes)

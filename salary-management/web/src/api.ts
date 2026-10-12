@@ -82,6 +82,27 @@ export function fetchReferenceData() {
   return request<ReferenceData>("/api/v1/reference_data");
 }
 
+export async function createHrManager(input: { full_name: string; email: string; password: string; password_confirmation: string }) {
+  const result = await request<{ data: ReferenceData["hr_managers"][number] }>("/api/v1/hr_managers", {
+    method: "POST", body: JSON.stringify({ hr_manager: input }),
+  });
+  return result.data;
+}
+
+export async function createDepartment(input: { name: string; hr_manager_id: number }) {
+  const result = await request<{ data: ReferenceData["departments"][number] }>("/api/v1/departments", {
+    method: "POST", body: JSON.stringify({ department: input }),
+  });
+  return result.data;
+}
+
+export async function updateDepartment(id: number, input: { hr_manager_id: number }) {
+  const result = await request<{ data: ReferenceData["departments"][number] }>(`/api/v1/departments/${id}`, {
+    method: "PATCH", body: JSON.stringify({ department: input }),
+  });
+  return result.data;
+}
+
 export async function createSalary(employeeId: number, input: SalaryInput) {
   const result = await request<{ data: Salary }>(`/api/v1/employees/${employeeId}/salary_records`, {
     method: "POST",

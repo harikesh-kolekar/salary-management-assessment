@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
 const sessionUser = { id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "admin" as const, organization: { id: 1, name: "ACME Corporation", slug: "acme-corporation" } };
-const referenceData = { countries: [{ code: "US", name: "United States" }, { code: "GB", name: "United Kingdom" }, { code: "SG", name: "Singapore" }], departments: ["Engineering", "Finance", "People", "Sales", "Operations", "Legal", "Marketing", "Product", "Support"].map((name) => ({ code: name.toUpperCase().replaceAll(" ", "_"), name, hr_manager: { id: 1, full_name: "Jamie Davis" } })) };
+const referenceData = { countries: [{ code: "US", name: "United States" }, { code: "GB", name: "United Kingdom" }, { code: "SG", name: "Singapore" }], departments: ["Engineering", "Finance", "People", "Sales", "Operations", "Legal", "Marketing", "Product", "Support"].map((name, index) => ({ id: index + 1, code: name.toUpperCase().replaceAll(" ", "_"), name, hr_manager: { id: 1, full_name: "Jamie Davis" } })), hr_managers: [{ id: 1, full_name: "Jamie Davis", email: "manager@example.test", role: "admin" as "admin" | "hr_manager" }] };
 
 const employee = {
   id: 1, employee_number: "ACME-00001", first_name: "Avery", last_name: "Kim", full_name: "Avery Kim",
@@ -153,7 +153,9 @@ describe("salary management workspace", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add employee" }));
+    const addEmployeeButton = await screen.findByRole("button", { name: "Add employee" });
+    await waitFor(() => expect(addEmployeeButton).toBeEnabled());
+    fireEvent.click(addEmployeeButton);
     await screen.findByRole("dialog", { name: "Add employee" });
     fireEvent.change(screen.getByLabelText("Employee number"), { target: { value: "ACME-NEW-2" } });
     fireEvent.change(screen.getByLabelText("First name"), { target: { value: "Iris" } });
@@ -174,5 +176,54 @@ describe("salary management workspace", () => {
     expect(await screen.findByRole("dialog", { name: "Iris Wong profile" })).toBeInTheDocument();
     expect(screen.queryByText("No salary record")).not.toBeInTheDocument();
     expect(within(screen.getByRole("dialog", { name: "Iris Wong profile" })).getAllByText(/90,000/)).toHaveLength(2);
+  });
+
+  it("lets an admin create HR managers and departments and reassign department managers", async () => {
+    let managers = [...referenceData.hr_managers];
+    let departments = [...referenceData.departments];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "admin-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify({ ...referenceData, departments, hr_managers: managers }), { status: 200 });
+      if (url === "/api/v1/hr_managers" && init?.method === "POST") {
+        const { hr_manager: user } = JSON.parse(String(init.body));
+        const created = { id: 2, full_name: user.full_name, email: user.email, role: "hr_manager" as const };
+        managers = [...managers, created];
+        return new Response(JSON.stringify({ data: created }), { status: 201 });
+      }
+      if (url === "/api/v1/departments" && init?.method === "POST") {
+        const { department } = JSON.parse(String(init.body));
+        const manager = managers.find((item) => item.id === department.hr_manager_id)!;
+        const created = { id: 20, name: department.name, code: department.name.toUpperCase(), hr_manager: { id: manager.id, full_name: manager.full_name } };
+        departments = [...departments, created];
+        return new Response(JSON.stringify({ data: created }), { status: 201 });
+      }
+      if (url === "/api/v1/departments/1" && init?.method === "PATCH") {
+        const { department } = JSON.parse(String(init.body));
+        const manager = managers.find((item) => item.id === department.hr_manager_id)!;
+        departments = departments.map((item) => item.id === 1 ? { ...item, hr_manager: { id: manager.id, full_name: manager.full_name } } : item);
+        return new Response(JSON.stringify({ data: departments[0] }), { status: 200 });
+      }
+      if (url.startsWith("/api/v1/employees")) return new Response(JSON.stringify({ data: [], meta: { page: 1, per_page: 25, total: 0, total_pages: 0 } }), { status: 200 });
+      return new Response(JSON.stringify({ as_of: "2026-10-11", headcount: 0, employee_count: 0, by_country: [], by_department: [], by_currency: [] }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Organization" }));
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Taylor HR" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "taylor@example.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strong-password" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add HR manager" }));
+    expect(await screen.findByText("HR manager added.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Department name"), { target: { value: "Compliance" } });
+    fireEvent.change(screen.getByLabelText("HR manager"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add department" }));
+    expect(await screen.findByText("Department added.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("HR manager for Engineering"), { target: { value: "2" } });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/departments/1", expect.objectContaining({ method: "PATCH" })));
+    expect(await screen.findByText("Department HR manager updated.")).toBeInTheDocument();
   });
 });

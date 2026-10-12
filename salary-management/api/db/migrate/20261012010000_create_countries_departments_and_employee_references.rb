@@ -1,3 +1,6 @@
+require "base64"
+require "securerandom"
+
 class CreateCountriesDepartmentsAndEmployeeReferences < ActiveRecord::Migration[8.1]
   COUNTRIES = {
     "US" => "United States", "GB" => "United Kingdom", "IN" => "India", "DE" => "Germany",
@@ -18,6 +21,7 @@ class CreateCountriesDepartmentsAndEmployeeReferences < ActiveRecord::Migration[
 
     execute "UPDATE users SET role = 'admin' WHERE role = 'manager'"
     change_column_default :users, :role, from: "manager", to: "admin"
+    ensure_each_organization_has_an_admin
     add_index :users, :organization_id, unique: true, where: "role = 'admin'", name: "index_users_one_admin_per_organization"
 
     create_table :departments do |t|
@@ -82,5 +86,26 @@ class CreateCountriesDepartmentsAndEmployeeReferences < ActiveRecord::Migration[
     drop_table :countries
     change_column_default :users, :role, from: "admin", to: "manager"
     execute "UPDATE users SET role = 'manager' WHERE role = 'admin'"
+  end
+
+  private
+
+  def ensure_each_organization_has_an_admin
+    select_all("SELECT id FROM organizations ORDER BY id").each do |organization|
+      organization_id = organization.fetch("id")
+      next if select_value("SELECT 1 FROM users WHERE organization_id = #{connection.quote(organization_id)} AND role = 'admin'")
+
+      salt = SecureRandom.hex(32)
+      digest = Base64.strict_encode64(SecureRandom.random_bytes(32))
+      now = connection.quote(Time.current)
+      execute <<~SQL
+        INSERT INTO users (organization_id, full_name, email, password_salt, password_digest, role, created_at, updated_at)
+        VALUES (
+          #{connection.quote(organization_id)}, 'Organization Admin',
+          #{connection.quote("bootstrap-admin-#{organization_id}@example.invalid")},
+          #{connection.quote(salt)}, #{connection.quote(digest)}, 'admin', #{now}, #{now}
+        )
+      SQL
+    end
   end
 end

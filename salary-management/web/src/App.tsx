@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Users, X } from "lucide-react";
-import { clearSessionToken, createEmployee, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, fetchReferenceData, login, registerOrganization, updateEmployee } from "./api";
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Settings, Users, UserPlus, X } from "lucide-react";
+import { clearSessionToken, createDepartment, createEmployee, createHrManager, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, fetchReferenceData, login, registerOrganization, updateDepartment, updateEmployee } from "./api";
 import { formatCurrency, formatDate } from "./format";
 import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, ReferenceData, SalaryInput, SessionUser } from "./types";
 
-type View = "people" | "compensation";
+type View = "people" | "compensation" | "organization";
 
 export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -48,6 +48,11 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
   useEffect(() => {
     fetchReferenceData().then(setReferenceData).catch((reason: Error) => setError(reason.message));
   }, []);
+
+  async function reloadReferenceData() {
+    const data = await fetchReferenceData();
+    setReferenceData(data);
+  }
 
   const params = useMemo(() => {
     const value = new URLSearchParams({ page: String(page), per_page: "25", sort, direction });
@@ -112,7 +117,7 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
     setRefreshKey((key) => key + 1);
   }
 
-  const pageTitle = view === "people" ? "People" : "Compensation";
+  const pageTitle = view === "people" ? "People" : view === "compensation" ? "Compensation" : "Organization";
 
   return (
     <div className="app-shell">
@@ -121,6 +126,7 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
         <div className="workspace-label">WORKSPACE</div>
         <button className={`nav-item ${view === "people" ? "active" : ""}`} onClick={() => setView("people")}><Users size={18} /> People <span className="nav-count">{dashboard ? dashboard.employee_count.toLocaleString() : "—"}</span></button>
         <button className={`nav-item ${view === "compensation" ? "active" : ""}`} onClick={() => setView("compensation")}><CircleDollarSign size={18} /> Compensation</button>
+        {user.role === "admin" && <button className={`nav-item ${view === "organization" ? "active" : ""}`} onClick={() => setView("organization")}><Settings size={18} /> Organization</button>}
         <div className="sidebar-bottom"><div className="sidebar-org"><div className="org-avatar">{initials(user.organization.name)}</div><div><strong>{user.organization.name}</strong><small>HR workspace</small></div><span className="chevron">⌄</span></div><div className="demo-note"><span className="demo-dot" /> Organization workspace</div></div>
       </aside>
 
@@ -141,7 +147,7 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
               </tbody></table></div>
               <div className="pagination"><span>Showing <strong>{people?.meta.total ? ((people.meta.page - 1) * people.meta.per_page + 1).toLocaleString() : 0}–{Math.min((people?.meta.page ?? 1) * (people?.meta.per_page ?? 25), people?.meta.total ?? 0).toLocaleString()}</strong> of <strong>{people?.meta.total.toLocaleString() ?? 0}</strong></span><div className="page-controls"><button aria-label="Previous page" disabled={(people?.meta.page ?? 1) <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} /></button><span>Page {people?.meta.page ?? 1} of {people?.meta.total_pages ?? 1}</span><button aria-label="Next page" disabled={(people?.meta.page ?? 1) >= (people?.meta.total_pages ?? 1)} onClick={() => setPage((value) => value + 1)}><ChevronRight size={16} /></button></div></div>
             </section>
-          </> : <Compensation dashboard={dashboard} countryNames={countryNames} />}
+          </> : view === "compensation" ? <Compensation dashboard={dashboard} countryNames={countryNames} /> : <OrganizationAdmin referenceData={referenceData} onRefresh={reloadReferenceData} />}
           <footer className="footer-note">ACME People <span>·</span> Compensation is shown in each employee’s local currency. No currency conversion is applied.</footer>
         </div>
       </main>
@@ -175,6 +181,56 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: SessionUser) 
   }
 
   return <main className="auth-page"><section className="auth-card"><div className="auth-brand"><span className="brand-mark">A</span><span>acme<span className="brand-light">people</span></span></div><div className="auth-intro"><div className="eyebrow">SALARY MANAGEMENT</div><h1>{mode === "login" ? "Welcome back" : "Create your organization"}</h1><p>{mode === "login" ? "Sign in to your organization’s employee and compensation workspace." : "Set up an organization and its first manager account."}</p></div><div className="auth-tabs"><button className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Sign in</button><button className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Create organization</button></div><form onSubmit={submit}>{mode === "register" && <><label>Organization name<input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} autoComplete="organization" required maxLength={120} /></label><label>Your name<input value={managerName} onChange={(event) => setManagerName(event.target.value)} autoComplete="name" required maxLength={120} /></label></>}<label>Work email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "register" ? 10 : undefined} /></label>{mode === "register" && <label>Confirm password<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required minLength={10} /></label>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button-primary auth-submit" disabled={saving}>{saving ? "Please wait…" : mode === "login" ? "Sign in" : "Create organization"}</button></form>{mode === "login" && <div className="demo-credentials"><strong>Demo manager</strong><span>hr.manager@acme.test</span><span>Password: acme-demo-2026</span><button type="button" onClick={() => { setEmail("hr.manager@acme.test"); setPassword("acme-demo-2026"); }}>Use demo account</button></div>}</section></main>;
+}
+
+function OrganizationAdmin({ referenceData, onRefresh }: { referenceData: ReferenceData | null; onRefresh: () => Promise<void> }) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
+  const [newDepartmentManager, setNewDepartmentManager] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const managers = referenceData?.hr_managers ?? [];
+
+  async function createManager(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      await createHrManager({ full_name: fullName, email, password, password_confirmation: passwordConfirmation });
+      setFullName(""); setEmail(""); setPassword(""); setPasswordConfirmation("");
+      await onRefresh(); setMessage("HR manager added.");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function createOrgDepartment(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      await createDepartment({ name: departmentName, hr_manager_id: Number(newDepartmentManager) });
+      setDepartmentName(""); await onRefresh(); setMessage("Department added.");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function reassignDepartment(departmentId: number, managerId: number) {
+    setBusy(true); setError(""); setMessage("");
+    try { await updateDepartment(departmentId, { hr_manager_id: managerId }); await onRefresh(); setMessage("Department HR manager updated."); }
+    catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  if (!referenceData) return <section className="panel table-message">Loading organization settings…</section>;
+  return <div className="organization-admin">
+    <section className="panel admin-intro"><div className="panel-heading"><div><h2>Organization access</h2><p>Manage department ownership and HR manager accounts for {"your organization"}.</p></div></div><p className="form-hint">HR managers can access employees in their assigned departments. One HR manager can own multiple departments. The admin can access all organization employees.</p></section>
+    <div className="admin-form-grid">
+      <section className="panel admin-form-panel"><div className="panel-heading"><div><h2>Add HR manager</h2><p>Create an organization-scoped HR account</p></div><UserPlus size={18} /></div><form onSubmit={createManager} className="admin-form"><label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} required maxLength={120} /></label><label>Work email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={10} required /></label><label>Confirm password<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} minLength={10} required /></label><button className="button-primary" disabled={busy}>Add HR manager</button></form></section>
+      <section className="panel admin-form-panel"><div className="panel-heading"><div><h2>Add department</h2><p>Assign an HR manager when creating it</p></div><Building2 size={18} /></div><form onSubmit={createOrgDepartment} className="admin-form"><label>Department name<input value={departmentName} onChange={(event) => setDepartmentName(event.target.value)} required maxLength={100} /></label><label>HR manager<select value={newDepartmentManager} onChange={(event) => setNewDepartmentManager(event.target.value)} required><option value="">Choose a manager</option>{managers.map((manager) => <option value={manager.id} key={manager.id}>{manager.full_name} · {manager.role === "admin" ? "Admin" : manager.email}</option>)}</select></label><p className="form-hint">The department code is generated from its name.</p><button className="button-primary" disabled={busy || managers.length === 0}>Add department</button></form></section>
+    </div>
+    {error && <div className="form-error" role="alert">{error}</div>}{message && <div className="success-banner" role="status">{message}</div>}
+    <section className="panel department-admin-panel"><div className="panel-heading"><div><h2>Departments</h2><p>Change the manager responsible for each department.</p></div><span className="result-count">{referenceData.departments.length} departments</span></div><div className="table-scroll"><table><thead><tr><th>Department</th><th>Code</th><th>HR manager</th></tr></thead><tbody>{referenceData.departments.map((department) => <tr key={department.id}><td>{department.name}</td><td>{department.code}</td><td><select aria-label={`HR manager for ${department.name}`} value={department.hr_manager.id} disabled={busy} onChange={(event) => reassignDepartment(department.id, Number(event.target.value))}>{managers.map((manager) => <option value={manager.id} key={manager.id}>{manager.full_name} · {manager.role === "admin" ? "Admin" : manager.email}</option>)}</select></td></tr>)}</tbody></table></div></section>
+  </div>;
 }
 
 function Stats({ dashboard }: { dashboard: Dashboard | null }) {

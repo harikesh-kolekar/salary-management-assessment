@@ -21,6 +21,14 @@ class User < ApplicationRecord
   validate :password_confirmation_matches, if: -> { password.present? }
   validate :only_one_admin_per_organization, if: -> { role == "admin" }
 
+  def admin?
+    role == "admin"
+  end
+
+  def hr_manager?
+    role == "hr_manager"
+  end
+
   def authenticate(candidate)
     return false unless candidate.is_a?(String) && password_digest.present? && password_salt.present?
 
