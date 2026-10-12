@@ -9,7 +9,7 @@ module Api
 
         user = result.user
         render json: {
-          token: Sessions::SessionToken.issue(user),
+          token: Sessions::JwtAuthenticator.issue(user),
           user: {
             id: user.id,
             full_name: user.full_name,

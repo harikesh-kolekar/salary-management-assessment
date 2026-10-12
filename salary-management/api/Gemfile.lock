@@ -96,6 +96,7 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (3.0.2)
+    jwt (3.3.0)
     logger (1.7.0)
     loofah (2.25.2)
       crass (~> 1.0.2)
@@ -206,6 +207,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  jwt (~> 3.3)
   puma (>= 5.0)
   rails (~> 8.1.4)
   sqlite3 (~> 2.9)

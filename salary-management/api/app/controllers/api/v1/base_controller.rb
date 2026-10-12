@@ -40,7 +40,7 @@ module Api
 
       def authenticate_user!
         token = request.get_header("HTTP_AUTHORIZATION").to_s.match(/\ABearer (.+)\z/i)&.captures&.first
-        @current_user = Sessions::SessionToken.authenticate(token) if token.present?
+        @current_user = Sessions::JwtAuthenticator.authenticate(token) if token.present?
         render json: { error: "Authentication required" }, status: :unauthorized unless @current_user
       end
 

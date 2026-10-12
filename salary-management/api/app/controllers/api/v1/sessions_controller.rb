@@ -18,7 +18,7 @@ module Api
 
       def session_payload(user)
         {
-          token: Sessions::SessionToken.issue(user),
+          token: Sessions::JwtAuthenticator.issue(user),
           user: {
             id: user.id,
             full_name: user.full_name,

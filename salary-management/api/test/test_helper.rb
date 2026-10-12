@@ -36,7 +36,7 @@ class ActionDispatch::IntegrationTest
       password_digest: User.digest_password("testing-password", salt)
     )
     Department::DEFAULT_NAMES.each { |name| @test_organization.departments.create!(name:, hr_manager: @test_user) }
-    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(@test_user)
+    Thread.current[:salary_management_test_token] = Sessions::JwtAuthenticator.issue(@test_user)
   end
 
   teardown do

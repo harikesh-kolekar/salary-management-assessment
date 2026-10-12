@@ -26,6 +26,7 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     token = response.parsed_body.fetch("token")
+    assert_equal 3, token.split(".").length
     assert_equal @test_user.id, response.parsed_body.dig("user", "id")
 
     get api_v1_session_path, headers: { "Authorization" => "Bearer #{token}" }
@@ -101,7 +102,7 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
       full_name: "Limited HR", email: "limited-hr@example.test", role: "hr_manager",
       password_salt: "limited-hr-salt", password_digest: User.digest_password("testing-password", "limited-hr-salt")
     )
-    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(hr_manager)
+    Thread.current[:salary_management_test_token] = Sessions::JwtAuthenticator.issue(hr_manager)
 
     post api_v1_hr_managers_path, params: { hr_manager: { full_name: "Another HR", email: "another-hr@example.test", password: "testing-password", password_confirmation: "testing-password" } }, as: :json
     assert_response :forbidden
