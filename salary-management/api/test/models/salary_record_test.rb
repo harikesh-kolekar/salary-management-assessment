@@ -2,10 +2,17 @@ require "test_helper"
 
 class SalaryRecordTest < ActiveSupport::TestCase
   setup do
+    organization = Organization.create!(name: "Salary Test Org", slug: "salary-test-org")
+    salt = "salary-test-salt"
+    manager = organization.users.create!(
+      full_name: "HR Manager", email: "salary-hr@example.test", password_salt: salt,
+      password_digest: User.digest_password("testing-password", salt)
+    )
+    department = organization.departments.create!(name: "Finance", hr_manager: manager)
     @employee = Employee.create!(
-      organization: Organization.create!(name: "Salary Test Org", slug: "salary-test-org"),
+      organization:,
       employee_number: "ACME-MODEL-1", first_name: "Sam", last_name: "Rivera",
-      email: "sam.rivera@example.test", country_code: "GB", department: "Finance",
+      email: "sam.rivera@example.test", country: Country.find_by!(code: "GB"), department:,
       job_title: "Analyst", status: "active", hired_on: Date.new(2023, 6, 1)
     )
   end

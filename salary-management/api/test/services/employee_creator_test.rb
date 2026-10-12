@@ -54,6 +54,12 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
   end
 
   def test_organization
-    @test_organization ||= Organization.create!(name: "Service Test Org", slug: "service-test-org")
+    return @test_organization if @test_organization
+
+    @test_organization = Organization.create!(name: "Service Test Org", slug: "service-test-org")
+    salt = "service-test-salt"
+    manager = @test_organization.users.create!(full_name: "Service HR", email: "service-hr@example.test", password_salt: salt, password_digest: User.digest_password("testing-password", salt))
+    Department::DEFAULT_NAMES.each { |name| @test_organization.departments.create!(name:, hr_manager: manager) }
+    @test_organization
   end
 end

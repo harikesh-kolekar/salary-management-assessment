@@ -4,6 +4,12 @@ require "rails/test_help"
 
 class ActiveSupport::TestCase
   parallelize(workers: 1)
+  setup do
+    {
+      "US" => "United States", "GB" => "United Kingdom", "IN" => "India", "DE" => "Germany",
+      "CA" => "Canada", "AU" => "Australia", "SG" => "Singapore", "JP" => "Japan"
+    }.each { |code, name| Country.find_or_create_by!(code:) { |country| country.name = name } }
+  end
 end
 
 module IntegrationAuthHeaders
@@ -29,6 +35,7 @@ class ActionDispatch::IntegrationTest
       password_salt: salt,
       password_digest: User.digest_password("testing-password", salt)
     )
+    Department::DEFAULT_NAMES.each { |name| @test_organization.departments.create!(name:, hr_manager: @test_user) }
     Thread.current[:salary_management_test_token] = SessionToken.issue(@test_user)
   end
 

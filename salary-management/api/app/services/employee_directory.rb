@@ -13,7 +13,7 @@ class EmployeeDirectory
     per_page = [[integer_filter(:per_page, 25), 1].max, 100].min
     total_pages = (total.to_f / per_page).ceil
     page = [[integer_filter(:page, 1), 1].max, [total_pages, 1].max].min
-    selected = records.order(sort_column => sort_direction, id: :asc)
+    selected = records.order(sort_attribute => sort_direction, id: :asc)
       .limit(per_page).offset((page - 1) * per_page).to_a
     salaries = current_salaries_for(selected.map(&:id))
 
@@ -26,12 +26,12 @@ class EmployeeDirectory
   private
 
   def filtered_employees
-    employees = @organization.employees
+    employees = @organization.employees.joins(:country, :department)
     employees = employees.where(status: @filters[:status]) if Employee::STATUSES.include?(@filters[:status])
     country = @filters[:country]
-    employees = employees.where(country_code: country.upcase) if country.is_a?(String) && country.present?
+    employees = employees.where(countries: { code: country.upcase }) if country.is_a?(String) && country.present?
     department = @filters[:department]
-    employees = employees.where(department:) if department.is_a?(String) && department.present?
+    employees = employees.where(departments: { name: department }) if department.is_a?(String) && department.present?
     query = @filters[:q]
     return employees unless query.is_a?(String) && query.present?
 
@@ -45,6 +45,14 @@ class EmployeeDirectory
 
   def sort_direction
     @filters[:direction] == "asc" ? :asc : :desc
+  end
+
+  def sort_attribute
+    case sort_column
+    when "country_code" then Country.arel_table[:code]
+    when "department" then Department.arel_table[:name]
+    else Employee.arel_table[sort_column]
+    end
   end
 
   def integer_filter(key, default)

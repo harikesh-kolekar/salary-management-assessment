@@ -16,7 +16,8 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
 
     assert_response :created
     assert_equal "Northwind Legal", response.parsed_body.dig("user", "organization", "name")
-    assert_equal "manager", response.parsed_body.dig("user", "role")
+    assert_equal "admin", response.parsed_body.dig("user", "role")
+    assert_equal Department::DEFAULT_NAMES.length, Organization.find_by!(slug: "northwind-legal").departments.count
     assert response.parsed_body["token"].present?
   end
 
@@ -40,6 +41,13 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_equal "Invalid email or password", response.parsed_body["error"]
   end
 
+  test "an organization can have only one admin user" do
+    duplicate = @test_organization.users.build(full_name: "Second Admin", email: "second-admin@example.test", role: "admin", password_salt: "other-salt", password_digest: User.digest_password("testing-password", "other-salt"))
+
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:role], "is limited to one admin per organization"
+  end
+
   test "organization data endpoints require authentication" do
     Thread.current[:salary_management_test_token] = nil
 
@@ -50,9 +58,11 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
 
   test "manager cannot list or view another organization's employees" do
     other_organization = Organization.create!(name: "Other Org", slug: "other-org")
+    other_manager = other_organization.users.create!(full_name: "Other HR", email: "hr@other.test", password_salt: "other-test-salt", password_digest: User.digest_password("testing-password", "other-test-salt"))
+    other_department = other_organization.departments.create!(name: "Legal", hr_manager: other_manager)
     other_employee = other_organization.employees.create!(
       employee_number: "OTHER-1", first_name: "Alex", last_name: "Kim",
-      email: "alex@other.test", country_code: "US", department: "Legal",
+      email: "alex@other.test", country: Country.find_by!(code: "US"), department: other_department,
       job_title: "Counsel", status: "active", hired_on: Date.current
     )
     other_employee.salary_records.create!(amount: 100_000, currency: "USD", effective_from: Date.current, reason: "Initial")

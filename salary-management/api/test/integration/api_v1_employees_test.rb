@@ -5,10 +5,22 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     @employee = Employee.create!(
       organization: @test_organization,
       employee_number: "ACME-TEST-1", first_name: "Maya", last_name: "Chen",
-      email: "maya.chen@example.test", country_code: "US", department: "Engineering",
+      email: "maya.chen@example.test", country: Country.find_by!(code: "US"), department: @test_organization.departments.find_by!(name: "Engineering"),
       job_title: "Staff Engineer", status: "active", hired_on: Date.new(2020, 3, 1)
     )
     @salary = @employee.salary_records.create!(amount: 150_000, currency: "USD", effective_from: Date.new(2025, 1, 1), reason: "Annual review")
+  end
+
+  test "reference data includes countries and organization departments with their HR managers" do
+    get "/api/v1/reference_data"
+
+    assert_response :success
+    payload = response.parsed_body
+    assert_includes payload.fetch("countries").map { |country| country.fetch("code") }, "US"
+    engineering = payload.fetch("departments").find { |item| item.fetch("name") == "Engineering" }
+    assert_equal "ENGINEERING", engineering.fetch("code")
+    assert_equal @test_user.id, engineering.dig("hr_manager", "id")
+    assert_equal "Test Manager", engineering.dig("hr_manager", "full_name")
   end
 
   test "directory searches and paginates employee records" do
@@ -118,16 +130,16 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
-    assert_includes response.parsed_body.dig("details", "department"), "is not included in the list"
+    assert_includes response.parsed_body.dig("details", "department"), "is not configured for this organization"
   end
 
   test "employee update rejects invalid values without changing the record" do
     patch api_v1_employee_path(@employee), params: { employee: { country_code: "XX", status: "unknown", department: "Unassigned" } }, as: :json
 
     assert_response :unprocessable_entity
-    assert_equal "US", @employee.reload.country_code
+    assert_equal "US", @employee.reload.country.code
     assert_equal "active", @employee.status
-    assert_equal "Engineering", @employee.department
+    assert_equal "Engineering", @employee.department.name
   end
 
   test "new salary is appended and becomes the current salary on its effective date" do

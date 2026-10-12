@@ -1,6 +1,8 @@
 class Organization < ApplicationRecord
   has_many :users, dependent: :destroy
+  has_one :admin_user, -> { where(role: "admin") }, class_name: "User"
   has_many :employees, dependent: :restrict_with_error
+  has_many :departments, dependent: :restrict_with_error
 
   validates :name, presence: true, length: { maximum: 120 }
   validates :slug, presence: true, uniqueness: true

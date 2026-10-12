@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       resource :session, only: %i[create show], controller: :sessions
       resources :organizations, only: :create
+      get "reference_data", to: "reference_data#show"
       get "dashboard", to: "dashboard#show"
       resources :employees, only: %i[index show create update] do
         resources :salary_records, only: :create

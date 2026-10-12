@@ -1,15 +1,12 @@
 class Employee < ApplicationRecord
   belongs_to :organization
+  belongs_to :country
+  belongs_to :department
   has_many :salary_records, -> { order(effective_from: :desc) }, dependent: :restrict_with_error
 
   STATUSES = %w[active leave terminated].freeze
-  COUNTRY_CODES = %w[US GB IN DE CA AU SG JP].freeze
-  DEPARTMENTS = %w[Engineering Finance People Sales Operations Legal Marketing Product Support].freeze
-
-  validates :employee_number, :first_name, :last_name, :email, :country_code, :department, :job_title, :hired_on, presence: true
+  validates :employee_number, :first_name, :last_name, :email, :job_title, :hired_on, presence: true
   validates :employee_number, :email, uniqueness: { scope: :organization_id }
-  validates :country_code, inclusion: { in: COUNTRY_CODES }
-  validates :department, inclusion: { in: DEPARTMENTS }
   validates :email, format: { with: /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/ }
   validates :status, inclusion: { in: STATUSES }
 

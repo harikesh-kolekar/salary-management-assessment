@@ -6,14 +6,14 @@ class DashboardSummary
   def call
     date = Date.current
     roster = @organization.employees.on_roster
-    current_salaries = SalaryRecord.effective_on(date).joins(:employee).merge(roster)
+    current_salaries = SalaryRecord.effective_on(date).joins(employee: [:country, :department]).merge(roster)
 
     {
       as_of: date,
       headcount: roster.count,
       employee_count: @organization.employees.count,
-      by_country: grouped_metrics(current_salaries, "employees.country_code"),
-      by_department: grouped_metrics(current_salaries, "employees.department"),
+      by_country: grouped_metrics(current_salaries, "countries.code"),
+      by_department: grouped_metrics(current_salaries, "departments.name"),
       by_currency: grouped_metrics(current_salaries, "salary_records.currency")
     }
   end
