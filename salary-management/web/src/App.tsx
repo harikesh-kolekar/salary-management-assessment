@@ -11,6 +11,12 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
+    const expireSession = () => setUser(null);
+    window.addEventListener("salary-session-expired", expireSession);
+    return () => window.removeEventListener("salary-session-expired", expireSession);
+  }, []);
+
+  useEffect(() => {
     if (!localStorage.getItem("acme-salary-session-token")) {
       setCheckingSession(false);
       return;

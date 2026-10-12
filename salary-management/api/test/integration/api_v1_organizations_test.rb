@@ -19,6 +19,7 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_equal "admin", response.parsed_body.dig("user", "role")
     assert_equal Department::DEFAULT_NAMES.length, Organization.find_by!(slug: "northwind-legal").departments.count
     assert response.parsed_body["token"].present?
+    assert response.cookies.fetch("salary_refresh_token").present?
   end
 
   test "manager can log in and retrieve the current session" do
@@ -55,6 +56,13 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "refresh without a cookie is rejected and clears the cookie path" do
+    post "/api/v1/session/refresh"
+
+    assert_response :unauthorized
+    assert response.headers["Set-Cookie"].to_s.include?("salary_refresh_token=")
+  end
+
   test "manager login does not accept an incorrect password" do
     post api_v1_session_path, params: { email: @test_user.email, password: "incorrect-password" }, as: :json
 
@@ -71,12 +79,17 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
 
   test "admin can add an HR manager and department, and reassign departments" do
     post api_v1_hr_managers_path, params: {
-      hr_manager: { full_name: "Taylor HR", email: "taylor.hr@example.test", password: "testing-password", password_confirmation: "testing-password" }
+      hr_manager: { full_name: "Taylor HR", email: "Taylor.HR@Example.Test", password: "testing-password", password_confirmation: "testing-password" }
     }, as: :json
 
     assert_response :created
     manager_id = response.parsed_body.dig("data", "id")
     assert_equal "hr_manager", response.parsed_body.dig("data", "role")
+    assert_equal "taylor.hr@example.test", response.parsed_body.dig("data", "email")
+
+    post api_v1_session_path, params: { email: "TAYLOR.HR@EXAMPLE.TEST", password: "testing-password" }, as: :json
+    assert_response :success
+    assert_equal manager_id, response.parsed_body.dig("user", "id")
 
     post api_v1_departments_path, params: { department: { name: "Compliance", hr_manager_id: manager_id } }, as: :json
 

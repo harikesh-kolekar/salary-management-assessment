@@ -40,6 +40,22 @@ describe("salary management workspace", () => {
     expect(localStorage.getItem("acme-salary-session-token")).toBe("fresh-access-token");
   });
 
+  it("returns to sign in when refresh fails after the access token expires", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "test-session-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/session/refresh") return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401 });
+      if (url.startsWith("/api/v1/employees") || url === "/api/v1/dashboard") return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
+      return new Response("{}", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+    expect(localStorage.getItem("acme-salary-session-token")).toBeNull();
+  });
+
   it("signs in a manager and opens their organization workspace", async () => {
     localStorage.clear();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

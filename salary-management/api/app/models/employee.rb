@@ -9,11 +9,20 @@ class Employee < ApplicationRecord
   validates :employee_number, :email, uniqueness: { scope: :organization_id }
   validates :email, format: { with: /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/ }
   validates :status, inclusion: { in: STATUSES }
+  validate :department_must_belong_to_organization
 
   scope :active, -> { where(status: "active") }
   scope :on_roster, -> { where(status: %w[active leave]) }
 
   def current_salary_record(on: Date.current)
     salary_records.where(effective_from: ..on).first
+  end
+
+  private
+
+  def department_must_belong_to_organization
+    return unless department && organization_id && department.organization_id != organization_id
+
+    errors.add(:department, "must belong to the same organization")
   end
 end

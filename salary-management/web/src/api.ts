@@ -8,6 +8,11 @@ export function clearSessionToken() {
   localStorage.removeItem(sessionTokenKey);
 }
 
+function expireSession() {
+  clearSessionToken();
+  window.dispatchEvent(new Event("salary-session-expired"));
+}
+
 function saveSessionToken(token: string) {
   localStorage.setItem(sessionTokenKey, token);
 }
@@ -44,14 +49,14 @@ async function refreshAccessToken(): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
     }).then(async (response) => {
       if (!response.ok) {
-        clearSessionToken();
+        expireSession();
         return null;
       }
       const result = await response.json() as { token: string };
       saveSessionToken(result.token);
       return result.token;
     }).catch(() => {
-      clearSessionToken();
+      expireSession();
       return null;
     }).finally(() => {
       refreshInFlight = null;

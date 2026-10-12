@@ -11,6 +11,7 @@ class User < ApplicationRecord
 
   attr_accessor :password, :password_confirmation
 
+  before_validation :normalize_email
   before_validation :hash_password, if: -> { password.present? }
 
   validates :full_name, presence: true, length: { maximum: 120 }
@@ -42,6 +43,10 @@ class User < ApplicationRecord
   end
 
   private
+
+  def normalize_email
+    self.email = email.to_s.strip.downcase
+  end
 
   def hash_password
     self.password_salt = SecureRandom.hex(16)
