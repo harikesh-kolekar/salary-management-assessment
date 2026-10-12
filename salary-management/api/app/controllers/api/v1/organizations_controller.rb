@@ -4,12 +4,12 @@ module Api
       skip_before_action :authenticate_user!, only: :create
 
       def create
-        result = OrganizationRegistration.new(**registration_params).call
+        result = Organizations::OrganizationRegistration.new(**registration_params).call
         return render_validation_failure(result.user) unless result.success?
 
         user = result.user
         render json: {
-          token: SessionToken.issue(user),
+          token: Sessions::SessionToken.issue(user),
           user: {
             id: user.id,
             full_name: user.full_name,

@@ -3,7 +3,7 @@ require "test_helper"
 class EmployeeCreatorTest < ActiveSupport::TestCase
   test "creates the employee and initial salary as one operation" do
     assert_difference(["Employee.count", "SalaryRecord.count"], 1) do
-      @result = EmployeeCreator.new(
+      @result = Employees::EmployeeCreator.new(
         organization: test_organization,
         employee_attributes: employee_attributes,
         initial_salary_attributes: {
@@ -21,7 +21,7 @@ class EmployeeCreatorTest < ActiveSupport::TestCase
 
   test "rolls back employee creation when initial salary is invalid" do
     assert_no_difference(["Employee.count", "SalaryRecord.count"]) do
-      @result = EmployeeCreator.new(
+      @result = Employees::EmployeeCreator.new(
         organization: test_organization,
         employee_attributes: employee_attributes,
         initial_salary_attributes: {

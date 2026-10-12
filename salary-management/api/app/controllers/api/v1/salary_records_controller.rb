@@ -3,7 +3,7 @@ module Api
     class SalaryRecordsController < BaseController
       def create
         visible_employees.find(params[:employee_id])
-        result = SalaryRecordCreator.new(organization: current_organization, employee_scope: visible_employees, employee_id: params[:employee_id], attributes: salary_record_params).call
+        result = SalaryRecords::SalaryRecordCreator.new(organization: current_organization, employee_scope: visible_employees, employee_id: params[:employee_id], attributes: salary_record_params).call
         if result.success?
           render json: { data: SalarySerializer.new(result.value).as_json }, status: :created
         else

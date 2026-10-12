@@ -4,7 +4,7 @@ module Api
       before_action :require_admin!
 
       def create
-        result = HrManagerCreator.new(organization: current_organization, attributes: hr_manager_params).call
+        result = Users::HrManagerCreator.new(organization: current_organization, attributes: hr_manager_params).call
         return render_validation_failure(result.value) unless result.success?
 
         user = result.value

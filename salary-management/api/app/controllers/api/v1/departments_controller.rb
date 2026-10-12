@@ -4,14 +4,14 @@ module Api
       before_action :require_admin!
 
       def create
-        result = DepartmentWriter.new(organization: current_organization, attributes: department_params).call
+        result = Departments::DepartmentWriter.new(organization: current_organization, attributes: department_params).call
         return render_validation_failure(result.value) unless result.success?
 
         render json: { data: serialize(result.value) }, status: :created
       end
 
       def update
-        result = DepartmentWriter.new(organization: current_organization, id: params[:id], attributes: department_params).call
+        result = Departments::DepartmentWriter.new(organization: current_organization, id: params[:id], attributes: department_params).call
         return render_validation_failure(result.value) unless result.success?
 
         render json: { data: serialize(result.value) }

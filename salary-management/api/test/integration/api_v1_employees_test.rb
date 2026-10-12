@@ -33,7 +33,7 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
     finance = @test_organization.departments.find_by!(name: "Finance")
     outside = create_employee("ACME-FIN-1", finance)
     visible = [@employee, create_employee("ACME-LEGAL-1", legal)]
-    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(hr_manager)
 
     get api_v1_employees_path
     assert_equal visible.map(&:id).sort, response.parsed_body.fetch("data").map { |row| row.fetch("id") }.sort
@@ -62,7 +62,7 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
       password_salt: "different-hr-salt", password_digest: User.digest_password("testing-password", "different-hr-salt")
     )
     other_organization.departments.create!(name: "Engineering", hr_manager: other_manager)
-    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(hr_manager)
 
     get "/api/v1/reference_data"
 
@@ -75,7 +75,7 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
   test "HR manager cannot move a visible employee to a department they do not manage" do
     hr_manager = create_hr_manager("update-hr@example.test")
     @test_organization.departments.find_by!(name: "Engineering").update!(hr_manager: hr_manager)
-    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(hr_manager)
 
     patch api_v1_employee_path(@employee), params: { employee: { department: "Finance" } }, as: :json
 
@@ -85,7 +85,7 @@ class ApiV1EmployeesTest < ActionDispatch::IntegrationTest
 
   test "HR managers cannot create employees outside their assigned departments" do
     hr_manager = create_hr_manager("limited-hr@example.test")
-    Thread.current[:salary_management_test_token] = SessionToken.issue(hr_manager)
+    Thread.current[:salary_management_test_token] = Sessions::SessionToken.issue(hr_manager)
 
     assert_no_difference("Employee.count") do
       post api_v1_employees_path, params: {
