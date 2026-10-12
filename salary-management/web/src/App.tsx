@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Settings, Users, UserPlus, X } from "lucide-react";
-import { clearSessionToken, createDepartment, createEmployee, createHrManager, createSalary, fetchCurrentUser, fetchDashboard, fetchEmployee, fetchEmployees, fetchReferenceData, login, logout, registerOrganization, updateDepartment, updateEmployee } from "./api";
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, Plus, Search, Send, Settings, Sparkles, Users, UserPlus, X } from "lucide-react";
+import { askPayrollAssistant, clearSessionToken, createDepartment, createEmployee, createHrManager, createSalary, fetchCurrentUser, fetchDashboard, fetchDepartment, fetchDepartments, fetchEmployee, fetchEmployees, fetchReferenceData, login, logout, registerOrganization, updateDepartment, updateEmployee } from "./api";
 import { formatCurrency, formatDate } from "./format";
-import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, ReferenceData, SalaryInput, SessionUser } from "./types";
+import type { Dashboard, Employee, EmployeeUpdate, Metric, Page, PayrollAssistantResponse, ReferenceData, SalaryInput, SessionUser } from "./types";
 
-type View = "people" | "compensation" | "organization";
+type View = "people" | "compensation" | "organization" | "departments" | "department-detail" | "assistant";
 
 export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -31,6 +31,7 @@ export default function App() {
 
 function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const [view, setView] = useState<View>("people");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
   const [department, setDepartment] = useState("");
@@ -123,7 +124,12 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
     setRefreshKey((key) => key + 1);
   }
 
-  const pageTitle = view === "people" ? "People" : view === "compensation" ? "Compensation" : "Organization";
+  const pageTitle = view === "people" ? "People" : view === "compensation" ? "Compensation" : view === "organization" ? "Organization" : view === "assistant" ? "Ask payroll" : "Departments";
+
+  function openDepartment(id: number) {
+    setSelectedDepartmentId(id);
+    setView("department-detail");
+  }
 
   return (
     <div className="app-shell">
@@ -132,6 +138,8 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
         <div className="workspace-label">WORKSPACE</div>
         <button className={`nav-item ${view === "people" ? "active" : ""}`} onClick={() => setView("people")}><Users size={18} /> People <span className="nav-count">{dashboard ? dashboard.employee_count.toLocaleString() : "—"}</span></button>
         <button className={`nav-item ${view === "compensation" ? "active" : ""}`} onClick={() => setView("compensation")}><CircleDollarSign size={18} /> Compensation</button>
+        <button className={`nav-item ${view === "departments" || view === "department-detail" ? "active" : ""}`} onClick={() => setView("departments")}><Building2 size={18} /> Departments</button>
+        <button className={`nav-item ${view === "assistant" ? "active" : ""}`} onClick={() => setView("assistant")}><Sparkles size={18} /> Ask payroll</button>
         {user.role === "admin" && <button className={`nav-item ${view === "organization" ? "active" : ""}`} onClick={() => setView("organization")}><Settings size={18} /> Organization</button>}
         <div className="sidebar-bottom"><div className="sidebar-org"><div className="org-avatar">{initials(user.organization.name)}</div><div><strong>{user.organization.name}</strong><small>HR workspace</small></div><span className="chevron">⌄</span></div><div className="demo-note"><span className="demo-dot" /> Organization workspace</div></div>
       </aside>
@@ -139,7 +147,7 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
       <main className="main-content">
         <header className="topbar"><div className="breadcrumb">{user.organization.name} <span>/</span> {pageTitle}</div><div className="user-chip"><span className="avatar">{initials(user.full_name)}</span><span>{user.full_name}</span><button className="logout-button" onClick={onLogout}>Sign out</button></div></header>
         <div className="content-wrap">
-          <div className="page-heading"><div><div className="eyebrow">PEOPLE OPERATIONS</div><h1>{pageTitle}</h1><p>{view === "people" ? "Your organization, at a glance." : "Understand how your organization pays people."}</p></div><div className="heading-actions">{view === "people" && <button className="button-primary add-employee-button" disabled={!referenceData} onClick={() => setEmployeeFormMode("create")}><Plus size={15} /> Add employee</button>}<div className="as-of"><span className="live-dot" /> Data updated just now</div></div></div>
+          <div className="page-heading"><div><div className="eyebrow">PEOPLE OPERATIONS</div><h1>{pageTitle}</h1><p>{view === "people" ? "Your organization, at a glance." : view === "departments" || view === "department-detail" ? "Explore departments and the people in them." : view === "assistant" ? "Ask questions and build reports from your accessible data." : "Understand how your organization pays people."}</p></div><div className="heading-actions">{view === "people" && <button className="button-primary add-employee-button" disabled={!referenceData} onClick={() => setEmployeeFormMode("create")}><Plus size={15} /> Add employee</button>}<div className="as-of"><span className="live-dot" /> Data updated just now</div></div></div>
           {error && <div className="error-banner" role="alert">{error}<button onClick={() => setRefreshKey((key) => key + 1)}>Retry</button></div>}
           {view === "people" ? <>
             <Stats dashboard={dashboard} />
@@ -153,7 +161,7 @@ function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void
               </tbody></table></div>
               <div className="pagination"><span>Showing <strong>{people?.meta.total ? ((people.meta.page - 1) * people.meta.per_page + 1).toLocaleString() : 0}–{Math.min((people?.meta.page ?? 1) * (people?.meta.per_page ?? 25), people?.meta.total ?? 0).toLocaleString()}</strong> of <strong>{people?.meta.total.toLocaleString() ?? 0}</strong></span><div className="page-controls"><button aria-label="Previous page" disabled={(people?.meta.page ?? 1) <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} /></button><span>Page {people?.meta.page ?? 1} of {people?.meta.total_pages ?? 1}</span><button aria-label="Next page" disabled={(people?.meta.page ?? 1) >= (people?.meta.total_pages ?? 1)} onClick={() => setPage((value) => value + 1)}><ChevronRight size={16} /></button></div></div>
             </section>
-          </> : view === "compensation" ? <Compensation dashboard={dashboard} countryNames={countryNames} /> : <OrganizationAdmin referenceData={referenceData} onRefresh={reloadReferenceData} />}
+          </> : view === "compensation" ? <Compensation dashboard={dashboard} countryNames={countryNames} /> : view === "organization" ? <OrganizationAdmin referenceData={referenceData} onRefresh={reloadReferenceData} /> : view === "departments" ? <DepartmentIndex isAdmin={user.role === "admin"} referenceData={referenceData} onRefresh={reloadReferenceData} onOpen={openDepartment} /> : view === "assistant" ? <PayrollAssistantView /> : selectedDepartmentId ? <DepartmentDetail departmentId={selectedDepartmentId} onBack={() => setView("departments")} /> : null}
           <footer className="footer-note">ACME People <span>·</span> Compensation is shown in each employee’s local currency. No currency conversion is applied.</footer>
         </div>
       </main>
@@ -186,7 +194,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: SessionUser) 
     finally { setSaving(false); }
   }
 
-  return <main className="auth-page"><section className="auth-card"><div className="auth-brand"><span className="brand-mark">A</span><span>acme<span className="brand-light">people</span></span></div><div className="auth-intro"><div className="eyebrow">SALARY MANAGEMENT</div><h1>{mode === "login" ? "Welcome back" : "Create your organization"}</h1><p>{mode === "login" ? "Sign in to your organization’s employee and compensation workspace." : "Set up an organization and its first manager account."}</p></div><div className="auth-tabs"><button className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Sign in</button><button className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Create organization</button></div><form onSubmit={submit}>{mode === "register" && <><label>Organization name<input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} autoComplete="organization" required maxLength={120} /></label><label>Your name<input value={managerName} onChange={(event) => setManagerName(event.target.value)} autoComplete="name" required maxLength={120} /></label></>}<label>Work email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "register" ? 10 : undefined} /></label>{mode === "register" && <label>Confirm password<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required minLength={10} /></label>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button-primary auth-submit" disabled={saving}>{saving ? "Please wait…" : mode === "login" ? "Sign in" : "Create organization"}</button></form>{mode === "login" && <div className="demo-credentials"><strong>Demo manager</strong><span>hr.manager@acme.test</span><span>Password: acme-demo-2026</span><button type="button" onClick={() => { setEmail("hr.manager@acme.test"); setPassword("acme-demo-2026"); }}>Use demo account</button></div>}</section></main>;
+  return <main className="auth-page"><section className="auth-card"><div className="auth-brand"><span className="brand-mark">A</span><span>acme<span className="brand-light">people</span></span></div><div className="auth-intro"><div className="eyebrow">SALARY MANAGEMENT</div><h1>{mode === "login" ? "Welcome back" : "Create your organization"}</h1><p>{mode === "login" ? "Sign in to your organization’s employee and compensation workspace." : "Set up an organization and its first manager account."}</p></div><div className="auth-tabs"><button className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Sign in</button><button className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Create organization</button></div><form onSubmit={submit}>{mode === "register" && <><label>Organization name<input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} autoComplete="organization" required maxLength={120} /></label><label>Your name<input value={managerName} onChange={(event) => setManagerName(event.target.value)} autoComplete="name" required maxLength={120} /></label></>}<label>Work email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "register" ? 10 : undefined} /></label>{mode === "register" && <label>Confirm password<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required minLength={10} /></label>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button-primary auth-submit" disabled={saving}>{saving ? "Please wait…" : mode === "login" ? "Sign in" : "Create organization"}</button></form>{mode === "login" && <div className="demo-credentials"><strong>Demo manager</strong><span>hr.manager@acme.test</span><span>Password: 1234567890</span><button type="button" onClick={() => { setEmail("hr.manager@acme.test"); setPassword("1234567890"); }}>Use demo account</button></div>}</section></main>;
 }
 
 function OrganizationAdmin({ referenceData, onRefresh }: { referenceData: ReferenceData | null; onRefresh: () => Promise<void> }) {
@@ -237,6 +245,145 @@ function OrganizationAdmin({ referenceData, onRefresh }: { referenceData: Refere
     {error && <div className="form-error" role="alert">{error}</div>}{message && <div className="success-banner" role="status">{message}</div>}
     <section className="panel department-admin-panel"><div className="panel-heading"><div><h2>Departments</h2><p>Change the manager responsible for each department.</p></div><span className="result-count">{referenceData.departments.length} departments</span></div><div className="table-scroll"><table><thead><tr><th>Department</th><th>Code</th><th>HR manager</th></tr></thead><tbody>{referenceData.departments.map((department) => <tr key={department.id}><td>{department.name}</td><td>{department.code}</td><td><select aria-label={`HR manager for ${department.name}`} value={department.hr_manager.id} disabled={busy} onChange={(event) => reassignDepartment(department.id, Number(event.target.value))}>{managers.map((manager) => <option value={manager.id} key={manager.id}>{manager.full_name} · {manager.role === "admin" ? "Admin" : manager.email}</option>)}</select></td></tr>)}</tbody></table></div></section>
   </div>;
+}
+
+function DepartmentIndex({ isAdmin, referenceData, onRefresh, onOpen }: { isAdmin: boolean; referenceData: ReferenceData | null; onRefresh: () => Promise<void>; onOpen: (id: number) => void }) {
+  const [departments, setDepartments] = useState<Awaited<ReturnType<typeof fetchDepartments>>>([]);
+  const [name, setName] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function reload() {
+    setError("");
+    try { setDepartments(await fetchDepartments()); }
+    catch (reason) { setError((reason as Error).message); }
+  }
+
+  useEffect(() => { void reload(); }, []);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await createDepartment({ name, hr_manager_id: Number(managerId) });
+      setName(""); setManagerId("");
+      await Promise.all([reload(), onRefresh()]);
+      setMessage("Department created.");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  return <div className="department-page">
+    {isAdmin && <section className="panel admin-form-panel"><div className="panel-heading"><div><h2>Create department</h2><p>Add a department to this organization and assign its HR manager.</p></div><Building2 size={18} /></div><form onSubmit={submit} className="admin-form department-create-form"><label>Department name<input value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} /></label><label>HR manager<select value={managerId} onChange={(event) => setManagerId(event.target.value)} required><option value="">Choose a manager</option>{(referenceData?.hr_managers ?? []).map((manager) => <option value={manager.id} key={manager.id}>{manager.full_name} · {manager.role === "admin" ? "Admin" : manager.email}</option>)}</select></label><p className="form-hint">A unique department code is generated from its name.</p><button className="button-primary" disabled={busy || !referenceData?.hr_managers.length}>Create department</button></form>{error && <div className="form-error department-form-message" role="alert">{error}</div>}{message && <div className="success-banner department-form-message" role="status">{message}</div>}</section>}
+    {!isAdmin && error && <div className="error-banner" role="alert">{error}<button onClick={() => void reload()}>Retry</button></div>}
+    <section className="panel department-list-panel"><div className="panel-heading"><div><h2>Departments</h2><p>Browse department details and employee rosters.</p></div><span className="result-count">{departments.length} departments</span></div><div className="department-card-grid">{departments.map((department) => <button className="department-card" key={department.id} onClick={() => onOpen(department.id)}><span className="department-card-icon"><Building2 size={19} /></span><span className="department-card-copy"><strong>{department.name}</strong><small>{department.code} · HR manager {department.hr_manager.full_name}</small></span><span className="department-card-count"><strong>{department.employee_count.toLocaleString()}</strong><small>employees</small></span><ChevronRight size={17} className="department-card-arrow" /></button>)}{departments.length === 0 && !error && <p className="department-empty">Loading departments…</p>}</div></section>
+  </div>;
+}
+
+function DepartmentDetail({ departmentId, onBack }: { departmentId: number; onBack: () => void }) {
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof fetchDepartment>> | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    setError("");
+    fetchDepartment(departmentId, page).then((data) => { if (live) setResult(data); })
+      .catch((reason: Error) => { if (live) setError(reason.message); });
+    return () => { live = false; };
+  }, [departmentId, page]);
+
+  if (error) return <section className="panel department-error"><p role="alert">{error}</p><button className="button-secondary" onClick={onBack}>Back to departments</button></section>;
+  if (!result) return <section className="panel table-message">Loading department…</section>;
+
+  const { data: department, employees, meta } = result;
+  return <div className="department-detail-page">
+    <button className="department-back" onClick={onBack}><ChevronLeft size={16} /> All departments</button>
+    <section className="panel department-summary"><div className="department-detail-mark"><Building2 size={21} /></div><div className="department-summary-copy"><div className="eyebrow">DEPARTMENT DETAILS</div><h2>{department.name}</h2><p>{department.code}</p></div><span className="department-employee-total"><strong>{department.employee_count.toLocaleString()}</strong><small>employees</small></span></section>
+    <section className="panel department-info"><div><span>HR manager</span><strong>{department.hr_manager.full_name}</strong></div><div><span>Department code</span><strong>{department.code}</strong></div><div><span>Employees</span><strong>{department.employee_count.toLocaleString()}</strong></div></section>
+    <section className="panel department-roster"><div className="panel-heading"><div><h2>Employee roster</h2><p>Employees assigned to {department.name}.</p></div><span className="result-count">{department.employee_count.toLocaleString()} employees</span></div><div className="table-scroll"><table><thead><tr><th>Employee</th><th>Job title</th><th>Country</th><th>Status</th></tr></thead><tbody>{employees.map((employee) => <tr key={employee.id}><td><div className="person-cell"><span className="person-avatar">{initials(employee.full_name)}</span><span><strong>{employee.full_name}</strong><small>{employee.employee_number} · {employee.email}</small></span></div></td><td>{employee.job_title}</td><td>{employee.country_code}</td><td><span className={`status-pill ${employee.status}`}>{employee.status === "active" ? "Active" : employee.status === "leave" ? "On leave" : "Terminated"}</span></td></tr>)}{employees.length === 0 && <tr><td colSpan={4} className="table-message">No employees assigned to this department.</td></tr>}</tbody></table></div><div className="pagination"><span>Showing <strong>{meta.total ? ((meta.page - 1) * meta.per_page + 1).toLocaleString() : 0}–{Math.min(meta.page * meta.per_page, meta.total).toLocaleString()}</strong> of <strong>{meta.total.toLocaleString()}</strong></span><div className="page-controls"><button aria-label="Previous page" disabled={meta.page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} /></button><span>Page {meta.page} of {meta.total_pages}</span><button aria-label="Next page" disabled={meta.page >= meta.total_pages} onClick={() => setPage((value) => value + 1)}><ChevronRight size={16} /></button></div></div></section>
+  </div>;
+}
+
+const pieColors = ["#617ce0", "#36a29a", "#e3a348", "#bc70b4", "#e57663", "#5887b5", "#8caa58", "#dc7894", "#8b80cb"];
+
+function PayrollPieChart({ data }: { data: { label: string; value: number }[] }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  let angle = -Math.PI / 2;
+  const slices = data.filter((item) => item.value > 0).map((item, index) => {
+    const sweep = (item.value / total) * Math.PI * 2;
+    const startX = 110 + 96 * Math.cos(angle);
+    const startY = 110 + 96 * Math.sin(angle);
+    const endAngle = angle + sweep;
+    const endX = 110 + 96 * Math.cos(endAngle);
+    const endY = 110 + 96 * Math.sin(endAngle);
+    const path = sweep >= Math.PI * 2 - 0.0001
+      ? "M 110 110 L 110 14 A 96 96 0 1 1 110 206 A 96 96 0 1 1 110 14 Z"
+      : `M 110 110 L ${startX} ${startY} A 96 96 0 ${sweep > Math.PI ? 1 : 0} 1 ${endX} ${endY} Z`;
+    angle = endAngle;
+    return { ...item, path, color: pieColors[index % pieColors.length] };
+  });
+
+  return <div className="assistant-pie-layout">
+    <svg className="assistant-pie" viewBox="0 0 220 220" role="img" aria-label={`Pie chart showing ${total.toLocaleString()} employees by ${data.length} ${data.length === 1 ? "group" : "groups"}`}>
+      <title>Employee count by department</title>
+      {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} stroke="white" strokeWidth="1.5"><title>{slice.label}: {slice.value.toLocaleString()} ({((slice.value / total) * 100).toFixed(1)}%)</title></path>)}
+    </svg>
+    <ul className="assistant-pie-legend">{slices.map((slice) => <li key={slice.label}><span className="assistant-pie-swatch" style={{ backgroundColor: slice.color }} /><span className="assistant-pie-name" title={slice.label}>{slice.label}</span><strong>{slice.value.toLocaleString()}</strong><span className="assistant-pie-percent">{((slice.value / total) * 100).toFixed(1)}%</span></li>)}</ul>
+  </div>;
+}
+
+function PayrollAssistantView() {
+  const [question, setQuestion] = useState("");
+  const [submittedQuestion, setSubmittedQuestion] = useState("");
+  const [response, setResponse] = useState<PayrollAssistantResponse | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function ask(text: string, page = 1) {
+    const cleanQuestion = text.trim();
+    if (!cleanQuestion) return;
+    setBusy(true); setError(""); setSubmittedQuestion(cleanQuestion);
+    try { setResponse(await askPayrollAssistant(cleanQuestion, page)); }
+    catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void ask(question, 1);
+  }
+
+  const report = response?.report;
+  const isPieChart = report?.chart_type === "pie" || /\b(?:pie|pi)[\s-]*chart\b/i.test(submittedQuestion);
+  const columns = report?.report_type === "salary_increases"
+    ? [{ key: "employee", label: "Employee" }, { key: "employee_number", label: "Employee ID" }, { key: "department", label: "Department" }, { key: "effective_from", label: "Effective date" }, { key: "previous_amount", label: "Previous pay" }, { key: "amount", label: "New pay" }, { key: "reason", label: "Reason" }]
+    : [{ key: "employee", label: "Employee" }, { key: "employee_number", label: "Employee ID" }, { key: "job_title", label: "Job title" }, { key: "department", label: "Department" }, { key: "country", label: "Country" }, { key: "status", label: "Status" }];
+
+  return <div className="assistant-page">
+    <section className="panel assistant-intro"><span className="assistant-mark"><Sparkles size={18} /></span><div><h2>Ask about your people data</h2><p>Get an employee list, compare headcount, or request a chart. Results follow your existing organization and department access.</p></div></section>
+    <section className="panel assistant-ask-panel"><form onSubmit={submit}><label htmlFor="payroll-question">What would you like to know?</label><textarea id="payroll-question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="For example: List employees whose salary increased after June 20, 2025" maxLength={500} rows={3} disabled={busy} /><div className="assistant-form-footer"><span>{question.length}/500 · Employee and compensation data only</span><button className="button-primary assistant-send" disabled={busy || !question.trim()}>{busy ? <><span className="assistant-spinner" /> Preparing report…</> : <><Send size={14} /> Ask</>}</button></div></form><div className="assistant-suggestions"><span>Try asking</span>{["List employees whose salary increased after June 20, 2025", "Create a chart of employees by department", "Show the employee roster for India"].map((suggestion) => <button key={suggestion} disabled={busy} onClick={() => { setQuestion(suggestion); void ask(suggestion); }}>{suggestion}</button>)}</div></section>
+    {error && <div className="error-banner" role="alert">{error}</div>}
+    {response && <section className="assistant-response" aria-live="polite"><div className="assistant-answer"><span className="assistant-mark small"><Sparkles size={14} /></span><div><strong>Payroll assistant</strong><p>{response.answer}</p></div></div>
+      {report && <>
+        <section className="panel assistant-report-panel"><div className="panel-heading"><div><h2>{report.title}</h2><p>{submittedQuestion}</p></div><span className="result-count">{report.total.toLocaleString()} results</span></div>
+          {report.chart.length > 0 && <div className="assistant-chart"><div className="assistant-chart-title"><strong>{isPieChart ? "Pie chart" : "Report chart"}</strong><span>Count by {report.chart_group}</span></div>{isPieChart ? <PayrollPieChart data={report.chart} /> : report.chart.map((item) => { const max = Math.max(...report.chart.map((datum) => datum.value), 1); return <div className="assistant-chart-row" key={item.label}><span className="assistant-chart-label" title={item.label}>{item.label}</span><div className="assistant-chart-track"><span style={{ width: `${Math.max((item.value / max) * 100, item.value > 0 ? 2 : 0)}%` }} /></div><strong>{item.value.toLocaleString()}</strong></div>; })}</div>}
+          {report.show_table && <>
+            <div className="table-scroll"><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{report.rows.map((row, index) => <tr key={`${String(row.employee_number ?? row.employee)}-${String(row.effective_from ?? index)}`}>{columns.map((column) => <td key={column.key}>{formatReportValue(column.key, row[column.key], row.currency)}</td>)}</tr>)}{report.rows.length === 0 && <tr><td colSpan={columns.length} className="table-message">No matching records were found in your accessible data.</td></tr>}</tbody></table></div>
+            <div className="pagination"><span>Showing <strong>{report.total ? ((report.page - 1) * report.per_page + 1).toLocaleString() : 0}–{Math.min(report.page * report.per_page, report.total).toLocaleString()}</strong> of <strong>{report.total.toLocaleString()}</strong></span><div className="page-controls"><button aria-label="Previous report page" disabled={busy || report.page <= 1} onClick={() => void ask(submittedQuestion, report.page - 1)}><ChevronLeft size={16} /></button><span>Page {report.page} of {report.total_pages}</span><button aria-label="Next report page" disabled={busy || report.page >= report.total_pages} onClick={() => void ask(submittedQuestion, report.page + 1)}><ChevronRight size={16} /></button></div></div>
+          </>}
+        </section>
+      </>}
+    </section>}
+  </div>;
+}
+
+function formatReportValue(key: string, value: string | number | null | undefined, currency?: string | number | null) {
+  if (value === null || value === undefined || value === "") return "—";
+  if ((key === "amount" || key === "previous_amount") && typeof value === "number") return `${value.toLocaleString()} ${currency ?? ""}`.trim();
+  return String(value);
 }
 
 function Stats({ dashboard }: { dashboard: Dashboard | null }) {

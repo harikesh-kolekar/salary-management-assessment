@@ -1,4 +1,4 @@
-import type { Dashboard, Employee, EmployeeUpdate, Page, ReferenceData, Salary, SalaryInput, SessionUser } from "./types";
+import type { Dashboard, Department, Employee, EmployeeUpdate, Page, PayrollAssistantResponse, ReferenceData, Salary, SalaryInput, SessionUser } from "./types";
 
 const sessionTokenKey = "acme-salary-session-token";
 const refreshPath = "/api/v1/session/refresh";
@@ -126,6 +126,22 @@ export function fetchDashboard() {
 
 export function fetchReferenceData() {
   return request<ReferenceData>("/api/v1/reference_data");
+}
+
+export async function fetchDepartments() {
+  const result = await request<{ data: Department[] }>("/api/v1/departments");
+  return result.data;
+}
+
+export function fetchDepartment(id: number, page = 1) {
+  return request<{ data: Department; employees: Employee[]; meta: Page<Employee>["meta"] }>(`/api/v1/departments/${id}?page=${page}&per_page=25`);
+}
+
+export function askPayrollAssistant(question: string, page = 1) {
+  return request<PayrollAssistantResponse>("/api/v1/assistant/ask", {
+    method: "POST",
+    body: JSON.stringify({ question, page }),
+  });
 }
 
 export async function createHrManager(input: { full_name: string; email: string; password: string; password_confirmation: string }) {

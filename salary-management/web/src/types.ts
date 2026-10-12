@@ -39,6 +39,30 @@ export type ReferenceData = {
   hr_managers: { id: number; full_name: string; email: string; role: "admin" | "hr_manager" }[];
 };
 
+export type Department = {
+  id: number;
+  name: string;
+  code: string;
+  employee_count: number;
+  hr_manager: { id: number; full_name: string };
+};
+
+export type PayrollReport = {
+  report_type: "employees" | "salary_increases" | "headcount";
+  title: string;
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  rows: Record<string, string | number | null>[];
+  show_table: boolean;
+  chart: { label: string; value: number }[];
+  chart_type: "bar" | "pie";
+  chart_group: string | null;
+};
+
+export type PayrollAssistantResponse = { answer: string; report: PayrollReport | null };
+
 export type Page<T> = {
   data: T[];
   meta: { page: number; per_page: number; total: number; total_pages: number };

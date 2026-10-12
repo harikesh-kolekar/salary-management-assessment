@@ -27,7 +27,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://127.0.0.1:5173>. The Vite development server proxies `/api` to Rails. Seed data is synthetic (`example.test` emails), deterministic, and safe to rerun: existing employee and effective-date records are retained. The demo manager is `hr.manager@acme.test` with password `acme-demo-2026`. Managers can also create a new organization and account from the sign-in screen. To rebuild the local demo data from scratch, run `bin/rails db:drop db:create db:migrate db:seed` in `api`.
+Open <http://127.0.0.1:5173>. The Vite development server proxies `/api` to Rails. Seed data is synthetic (`example.test` emails), deterministic, and safe to rerun: existing employee and effective-date records are retained. The demo manager is `hr.manager@acme.test` with password `1234567890`. Managers can also create a new organization and account from the sign-in screen. To rebuild the local demo data from scratch, run `bin/rails db:drop db:create db:migrate db:seed` in `api`.
 
 ## Tests and production build
 
@@ -48,6 +48,7 @@ The Rails tests cover organization registration, manager login, tenant isolation
 - `POST /api/v1/organizations` — register an organization and its first manager; returns a bearer token.
 - `POST /api/v1/session` — manager sign-in; returns a bearer token.
 - `GET /api/v1/session` — validate the current bearer token and return its manager and organization.
+- `POST /api/v1/assistant/ask` — project-scoped employee and compensation Q&A with paginated report data and optional chart aggregates.
 - `GET /api/v1/employees?q=&country=&department=&status=&page=&per_page=&sort=&direction=` — filtered, sorted, bounded page.
 - `GET /api/v1/employees/:id` — profile and salary history.
 - `POST /api/v1/employees` — create a validated employee directory record.
@@ -63,10 +64,16 @@ The root `Dockerfile` builds the React app and packages it with Rails. `docker-c
 
 ```sh
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
+export GEMINI_API_KEY="your-server-side-api-key"
+# Optional: export GEMINI_MODEL="gemini-3.8-flash"
 docker compose up --build
 ```
 
 Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker compose exec app bundle exec rails db:seed`. Provide a persistent disk for `/app/storage` on a hosting platform. A public demo can use synthetic data. Before real employee records are loaded, add access audit logging, encrypted backups, rate limiting, and an organization-approved security and privacy review.
+
+The payroll assistant uses RubyLLM with the Gemini API and reads `GEMINI_API_KEY` from the server environment. Never put the key in React, source code, or a committed `.env` file. Local Rails development also needs the variable exported before starting the API. Without a Gemini API key, the assistant explains how to configure the service and does not call the model.
+
+The assistant only receives the authenticated user's existing organization and department-scoped employee relation. Its only model tool runs fixed, parameterized reports; it cannot run arbitrary SQL or access external tools. It supports employee lists, salary increases, headcount, and count charts grouped by department, country, status, or salary-change month.
 
 ## Repository map
 

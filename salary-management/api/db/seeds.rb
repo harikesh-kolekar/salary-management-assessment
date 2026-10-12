@@ -12,7 +12,7 @@ last_names = %w[Kim Patel Garcia Chen Singh Brown Wilson Martin Davis Moore Tayl
 titles = ["Analyst", "Associate", "Senior Associate", "Manager", "Senior Manager", "Director", "Engineer", "Lead"]
 timestamp = Time.utc(2025, 1, 1)
 organization = Organization.find_or_create_by!(slug: "acme-corporation") { |record| record.name = "ACME Corporation" }
-demo_password = "123456789"
+demo_password = "1234567890"
 seed_demo_user = lambda do |email, full_name, role|
   user = if role == "admin"
     organization.admin_user || organization.users.find_or_initialize_by(email:)

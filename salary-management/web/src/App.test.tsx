@@ -268,3 +268,61 @@ describe("salary management workspace", () => {
     expect(await screen.findByText("Department HR manager updated.")).toBeInTheDocument();
   });
 });
+
+describe("payroll assistant report presentation", () => {
+  function setupAssistant(report: Record<string, unknown>) {
+    localStorage.clear();
+    localStorage.setItem("acme-salary-session-token", "assistant-test-token");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/session") return new Response(JSON.stringify({ token: "assistant-test-token", user: sessionUser }), { status: 200 });
+      if (url === "/api/v1/reference_data") return new Response(JSON.stringify(referenceData), { status: 200 });
+      if (url.startsWith("/api/v1/employees")) return new Response(JSON.stringify({ data: [], meta: { page: 1, per_page: 25, total: 0, total_pages: 0 } }), { status: 200 });
+      if (url === "/api/v1/dashboard") return new Response(JSON.stringify({ as_of: "2026-10-11", headcount: 0, employee_count: 0, by_country: [], by_department: [], by_currency: [] }), { status: 200 });
+      if (url === "/api/v1/assistant/ask") return new Response(JSON.stringify({ answer: "Here is the requested report.", report }), { status: 200 });
+      return new Response("{}", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  async function askQuestion(question: string) {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ask payroll" }));
+    fireEvent.change(screen.getByLabelText("What would you like to know?"), { target: { value: question } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+  }
+
+  it("shows a department pie chart without an employee table for an aggregate chart request", async () => {
+    setupAssistant({
+      report_type: "headcount", title: "Employee headcount", total: 3, page: 1, per_page: 25, total_pages: 1,
+      rows: [], show_table: false,
+      chart: [{ label: "Engineering", value: 2 }, { label: "Finance", value: 1 }],
+      chart_type: "pie", chart_group: "department",
+    });
+
+    await askQuestion("Give me count of employee with pi-chart with department");
+
+    expect(await screen.findByRole("img", { name: /Pie chart showing 3 employees/ })).toBeInTheDocument();
+    expect(document.querySelectorAll(".assistant-pie path")).toHaveLength(2);
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText("Finance")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  });
+
+  it("shows the employee table without a chart for an employee list request", async () => {
+    setupAssistant({
+      report_type: "employees", title: "Employee list", total: 1, page: 1, per_page: 25, total_pages: 1,
+      rows: [{ employee: "Avery Kim", employee_number: "ACME-00001", job_title: "Engineer", department: "Engineering", country: "United States", status: "active" }],
+      show_table: true, chart: [], chart_type: "bar", chart_group: null,
+    });
+
+    await askQuestion("Give me the employee list for Engineering");
+
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(screen.getByText("Avery Kim")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Pie chart/ })).not.toBeInTheDocument();
+    expect(document.querySelector(".assistant-chart-row")).toBeNull();
+  });
+});
