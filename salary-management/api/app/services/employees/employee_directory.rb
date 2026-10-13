@@ -28,7 +28,7 @@ module Employees
     private
 
     def filtered_employees
-      employees = @employee_scope.joins(:country, :department)
+      employees = @employee_scope.joins(:country, :department).preload(:country, :department)
       employees = employees.where(status: @filters[:status]) if Employee::STATUSES.include?(@filters[:status])
       country = @filters[:country]
       employees = employees.where(countries: { code: country.upcase }) if country.is_a?(String) && country.present?
