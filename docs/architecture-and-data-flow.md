@@ -1,6 +1,6 @@
 # Architecture, Data Flow, and Data Model
 
-This document describes the current implementation of ACME Salary Management: a React UI, a Rails JSON API, a relational database, and an optional OpenAI model for payroll reporting.
+This document describes the current implementation of ACME Salary Management: a React UI, a Rails JSON API, SQLite for development/test, PostgreSQL for production, and an optional OpenAI model for payroll reporting.
 
 ## System architecture
 
@@ -17,7 +17,7 @@ flowchart LR
   MCP --> Auth
   Auth --> Services[Controllers and domain services]
   Services --> Models[Active Record models and validations]
-  Models --> DB[(SQLite database)]
+  Models --> DB[(SQLite locally / PostgreSQL in production)]
 
   Services -->|question + tool schema; no database connection| RubyLLM[RubyLLM payroll reporting agent]
   RubyLLM -->|question + instructions + schema; no employee rows| OpenAI[OpenAI Responses API, GPT-6 Luna by default]
@@ -46,7 +46,7 @@ sequenceDiagram
   participant Sessions as SessionsController
   participant JWT as JwtAuthenticator
   participant Refresh as RefreshTokenManager
-  participant DB as SQLite
+  participant DB as SQLite dev/test, PostgreSQL production
   participant API as Protected API controller
 
   User->>UI: Submit email and password
@@ -97,7 +97,7 @@ sequenceDiagram
   participant Agent as PayrollReportingAgent (RubyLLM)
   participant OpenAI as OpenAI Responses API
   participant Tool as PayrollReportTool
-  participant DB as SQLite
+  participant DB as SQLite dev/test, PostgreSQL production
 
   User->>API: Question and optional report page
   API->>Scope: Use authenticated user's employee access scope
@@ -145,7 +145,7 @@ sequenceDiagram
   participant Assistant as PayrollAssistant
   participant LLM as OpenAI GPT-6 Luna
   participant Tool as PayrollReportTool
-  participant DB as SQLite
+  participant DB as SQLite dev/test, PostgreSQL production
 
   HR->>UI: Ask for a report or chart
   UI->>API: POST /api/v1/assistant/ask + bearer token
@@ -289,5 +289,5 @@ erDiagram
 | Rails controllers | HTTP validation, authentication hooks, status codes, and JSON serialization |
 | Rails services | Employee CRUD workflows, department management, dashboard summaries, session rotation, and report orchestration |
 | Active Record models | Associations, field validation, tenant consistency validation, and database-backed relations |
-| SQLite | Durable relational data, unique constraints, foreign keys, and indexed queries |
+| SQLite (development/test); PostgreSQL (production) | Relational data, unique constraints, foreign keys, and indexed queries |
 | RubyLLM + OpenAI | Parse a natural-language report request into a constrained tool call and summarize aggregate results |

@@ -7,7 +7,7 @@ COPY web/ ./
 RUN pnpm build
 
 FROM ruby:3.3.3-slim AS app
-RUN apt-get update -qq && apt-get install --no-install-recommends -y build-essential ca-certificates libsqlite3-0 libsqlite3-dev libyaml-0-2 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install --no-install-recommends -y build-essential ca-certificates libpq-dev libsqlite3-0 libsqlite3-dev libyaml-0-2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV RAILS_ENV=production BUNDLE_WITHOUT="development:test" RAILS_SERVE_STATIC_FILES=1
 COPY api/Gemfile api/Gemfile.lock ./

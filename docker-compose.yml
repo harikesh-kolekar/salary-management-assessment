@@ -6,6 +6,7 @@ services:
     environment:
       RAILS_ENV: production
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE before starting}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL before starting}
       RAILS_SERVE_STATIC_FILES: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}

@@ -21,11 +21,11 @@ The MCP Streamable HTTP endpoint reuses the same report service and access rules
 
 ## Scale and query behavior
 
-10,000 rows are deliberately seeded to make list and summary behavior tangible. Directory API calls filter and sort in SQL and return at most 100 rows per request. Employee and salary foreign-key, lookup, and effective-date indexes support common access paths. The page fetch uses one employee query and one current-salary query for the page. Dashboard averages and totals use grouped SQL aggregates, rather than loading all employee rows into application memory. SQLite is adequate for the deterministic assessment/demo dataset; a high-concurrency, multi-instance deployment should move to PostgreSQL and add load measurements before release.
+10,000 rows are deliberately seeded to make list and summary behavior tangible. Directory API calls filter and sort in SQL and return at most 100 rows per request. Employee and salary foreign-key, lookup, and effective-date indexes support common access paths. The page fetch uses one employee query and one current-salary query for the page. Dashboard averages and totals use grouped SQL aggregates, rather than loading all employee rows into application memory. SQLite keeps the deterministic assessment/demo setup self-contained; production uses PostgreSQL, with load measurements still required before serving real payroll data.
 
 ## Trade-offs and boundaries
 
-- **SQLite for a self-contained exercise:** easy to run and seed with no separate service. It serializes writes and is unsuitable for horizontal replicas or sustained payroll operations; PostgreSQL is the planned production move.
+- **SQLite locally, PostgreSQL in production:** SQLite keeps development and tests self-contained. Production uses PostgreSQL via `DATABASE_URL`, avoiding SQLite write serialization and per-instance data divergence when deploying beyond one instance.
 - **Manager-only access:** registration creates an organization and its first manager. Protected employee, salary, and dashboard APIs scope every query and mutation to the authenticated manager’s organization. The SPA stores the signed token in local storage for the demo; production should use a reviewed session strategy, rate limiting, password recovery, access audit, and stronger operational controls before real data.
 - **No FX conversions:** combining amounts across currencies would produce misleading results without a trusted rate source and effective-date policy.
 - **Append-only changes:** users can make a correction by appending a later record; this simple model preserves traceable history. Formal approval, retroactive adjustments, and audit immutability are follow-on product decisions.

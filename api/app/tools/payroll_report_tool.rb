@@ -138,7 +138,7 @@ class PayrollReportTool < RubyLLM::Tool
     when "department" then records.group("departments.name").count
     when "country" then records.group("countries.name").count
     when "status" then report_type == "salary_increases" ? records.group("employees.status").count : records.group(:status).count
-    when "month" then records.group(Arel.sql("strftime('%Y-%m', salary_records.effective_from)")).count
+    when "month" then records.group(month_group_expression).count
     else {}
     end
     groups.sort_by { |label, _count| label.to_s }.map { |label, count| { label: label.presence || "Unknown", value: count } }
@@ -150,6 +150,15 @@ class PayrollReportTool < RubyLLM::Tool
     when "headcount" then "Employee headcount"
     else "Employee list"
     end
+  end
+
+  def month_group_expression
+    expression = if @employee_scope.klass.connection.adapter_name == "PostgreSQL"
+      "TO_CHAR(salary_records.effective_from, 'YYYY-MM')"
+    else
+      "strftime('%Y-%m', salary_records.effective_from)"
+    end
+    Arel.sql(expression)
   end
 
   def allowed(value, values, fallback)

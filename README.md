@@ -1,6 +1,6 @@
 # ACME Salary Management
 
-An HR manager workspace for a synthetic 10,000-person, multi-country workforce. The app combines a Rails JSON API, SQLite relational storage, and a React/TypeScript single-page UI. It supports employee search/filtering, profiles, salary history and effective-dated salary changes, plus headcount and compensation summaries by country, department, and currency.
+An HR manager workspace for a synthetic 10,000-person, multi-country workforce. The app combines a Rails JSON API, SQLite for development/test, PostgreSQL for production, and a React/TypeScript single-page UI. It supports employee search/filtering, profiles, salary history and effective-dated salary changes, plus headcount and compensation summaries by country, department, and currency.
 
 > This MVP includes manager login and organization-level data isolation, but it is still a demo and is not approved for production employee data. Production use still needs security review, access auditing, backup protection, and operational controls. Read [the requirements](REQUIREMENTS.md) for scope and omissions.
 
@@ -77,10 +77,11 @@ See the [LLM request/data-flow diagram and implementation references](docs/archi
 
 ## Deployable container
 
-The root `Dockerfile` builds the React app and packages it with Rails. `docker-compose.yml` serves the static frontend and API from one origin and persists the SQLite databases in a named volume. It is a single-instance container setup; use PostgreSQL and a production deployment platform for multi-instance or high-availability deployments. Create a strong secret key before starting it:
+The root `Dockerfile` builds the React app and packages it with Rails. Development and test use SQLite; production uses PostgreSQL through `DATABASE_URL`. `docker-compose.yml` serves the static frontend and API from one origin and retains a named volume for local storage. Set a strong Rails secret and the production database URL before starting it:
 
 ```sh
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
+export DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
 export OPENAI_API_KEY="your-openai-api-key"
 # Optional: export OPENAI_MODEL="gpt-6-luna"
 # Optional when exposing MCP behind a public host or browser origin:
@@ -91,7 +92,7 @@ export SEED_DEMO_DATA=true
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:3000>. Demo seeding is off by default; set `SEED_DEMO_DATA=true` before startup to seed synthetic accounts and 10,000 employees. Seeding runs at container startup and is safe to rerun for employee and salary natural keys, but it resets the seeded demo users' passwords. To seed after startup, run `docker compose exec app bundle exec rails db:seed`. Keep `/app/storage` on a persistent disk. This Compose setup is intended for local evaluation or a synthetic-data demo, not as a production deployment template for real payroll records. Before using real employee data, add access audit logging, encrypted backups, rate limiting, PostgreSQL, and an organization-approved security and privacy review.
+Then open <http://127.0.0.1:3000>. Demo seeding is off by default; set `SEED_DEMO_DATA=true` before startup to seed synthetic accounts and 10,000 employees. Seeding runs at container startup and is safe to rerun for employee and salary natural keys, but it resets the seeded demo users' passwords. To seed after startup, run `docker compose exec app bundle exec rails db:seed`. This Compose setup is intended for local evaluation or a synthetic-data demo, not as a production deployment template for real payroll records. Before using real employee data, add access audit logging, encrypted backups, rate limiting, and an organization-approved security and privacy review.
 
 Never put the OpenAI key in React, source code, or a committed `.env` file. Local Rails development needs `OPENAI_API_KEY` exported before starting the API.
 
