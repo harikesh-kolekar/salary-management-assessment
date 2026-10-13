@@ -1,6 +1,9 @@
 class PayrollReportingAgent < RubyLLM::Agent
-  model ENV.fetch("GEMINI_MODEL", "gemini-3.8-flash"), provider: :gemini, protocol: :gemini
-  max_output_tokens 700
+  model ENV.fetch("CLOUDFLARE_MODEL", "openai/gpt-6-luna"),
+    provider: :openai,
+    protocol: :chat_completions,
+    assume_model_exists: true
+  max_output_tokens 1400
 
   instructions <<~INSTRUCTIONS
     You are the in-product reporting assistant for ACME People, an employee and compensation management application.

@@ -64,14 +64,15 @@ The root `Dockerfile` builds the React app and packages it with Rails. `docker-c
 
 ```sh
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
-export GEMINI_API_KEY="your-server-side-api-key"
-# Optional: export GEMINI_MODEL="gemini-3.8-flash"
+export CLOUDFLARE_API_TOKEN="your-workers-ai-token"
+export CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
+# Optional: export CLOUDFLARE_MODEL="openai/gpt-6-luna"
 docker compose up --build
 ```
 
 Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker compose exec app bundle exec rails db:seed`. Provide a persistent disk for `/app/storage` on a hosting platform. A public demo can use synthetic data. Before real employee records are loaded, add access audit logging, encrypted backups, rate limiting, and an organization-approved security and privacy review.
 
-The payroll assistant uses RubyLLM with the Gemini API and reads `GEMINI_API_KEY` from the server environment. Never put the key in React, source code, or a committed `.env` file. Local Rails development also needs the variable exported before starting the API. Without a Gemini API key, the assistant explains how to configure the service and does not call the model.
+The payroll assistant uses RubyLLM with Cloudflare's OpenAI-compatible chat completions endpoint. It reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from the server environment; the account ID is required to build the Cloudflare account endpoint. Never put credentials in React or source code, or commit a `.env` file. Local Rails development needs both variables exported before starting the API. The default model is `openai/gpt-6-luna`; override it with `CLOUDFLARE_MODEL` if needed. Without the Cloudflare configuration, the assistant returns a setup message without calling the model.
 
 The assistant only receives the authenticated user's existing organization and department-scoped employee relation. Its only model tool runs fixed, parameterized reports; it cannot run arbitrary SQL or access external tools. It supports employee lists, salary increases, headcount, and count charts grouped by department, country, status, or salary-change month.
 

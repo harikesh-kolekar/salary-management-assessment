@@ -24,4 +24,17 @@ class PayrollAssistantTest < ActiveSupport::TestCase
       assert_not @assistant.send(:requested_rows?, question), question
     end
   end
+
+  test "rejects an assistant response when no report tool result exists" do
+    assert_raises(Reports::PayrollAssistant::MissingReport) do
+      @assistant.send(:build_result, "", nil)
+    end
+  end
+
+  test "uses a visible fallback answer when the report exists but assistant text is blank" do
+    result = @assistant.send(:build_result, "", { total: 0 })
+
+    assert_equal "Here is the report you requested.", result[:answer]
+    assert_equal 0, result.dig(:report, :total)
+  end
 end

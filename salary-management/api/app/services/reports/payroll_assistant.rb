@@ -1,6 +1,7 @@
 module Reports
   class PayrollAssistant
-    class MissingApiKey < StandardError; end
+    class MissingProviderConfig < StandardError; end
+    class MissingReport < StandardError; end
 
     PROJECT_TERMS = /\b(employee|employees|staff|workforce|roster|department|country|countries|salary|salaries|paid|pay\w*|compensation|increment\w*|raise\w*|increas\w*|headcount|job title|hire date|status|chart|graph|report|pay band)\b/i
     REPORT_INTENTS = /\b(list|show|find|which|who|whose|how\b|count|average|total|compare|breakdown|chart|graph|report|roster|summarize|highest|lowest|top|bottom|trend|happened|happen\w*|occurred|received)\b/i
@@ -13,7 +14,7 @@ module Reports
 
     def call(question)
       return { answer: OUT_OF_SCOPE_REPLY, report: nil } unless question.match?(PROJECT_TERMS) && question.match?(REPORT_INTENTS)
-      raise MissingApiKey if ENV["GEMINI_API_KEY"].blank?
+      raise MissingProviderConfig if ENV["CLOUDFLARE_API_TOKEN"].blank? || ENV["CLOUDFLARE_ACCOUNT_ID"].blank?
 
       report_tool = PayrollReportTool.new(
         employee_scope: @employee_scope,
@@ -26,10 +27,16 @@ module Reports
         .with_tool_options(choice: :required, calls: :one)
         .ask(question)
 
-      { answer: response.content.to_s, report: report_tool.result }
+      build_result(response.content, report_tool.result)
     end
 
     private
+
+    def build_result(answer, report)
+      raise MissingReport if report.nil?
+
+      { answer: answer.to_s.presence || "Here is the report you requested.", report: }
+    end
 
     def requested_chart_type(question)
       return "pie" if question.match?(/\b(?:pie|pi)[\s-]*chart\b/i)
