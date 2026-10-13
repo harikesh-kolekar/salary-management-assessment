@@ -19,14 +19,7 @@ module Api
       end
 
       def visible_employees
-        @visible_employees ||= begin
-          employees = current_organization.employees
-          if current_user.hr_manager?
-            employees.where(department_id: current_user.managed_departments.select(:id))
-          else
-            employees
-          end
-        end
+        @visible_employees ||= Employees::VisibleScope.for(current_user)
       end
 
       def visible_departments

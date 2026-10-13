@@ -49,6 +49,7 @@ The Rails tests cover organization registration, manager login, tenant isolation
 - `POST /api/v1/session` — manager sign-in; returns a bearer token.
 - `GET /api/v1/session` — validate the current bearer token and return its manager and organization.
 - `POST /api/v1/assistant/ask` — project-scoped employee and compensation Q&A with paginated report data and optional chart aggregates.
+- `POST /api/v1/mcp` — authenticated MCP Streamable HTTP endpoint exposing the read-only `ask_payroll` tool.
 - `GET /api/v1/employees?q=&country=&department=&status=&page=&per_page=&sort=&direction=` — filtered, sorted, bounded page.
 - `GET /api/v1/employees/:id` — profile and salary history.
 - `POST /api/v1/employees` — create a validated employee directory record.
@@ -58,6 +59,12 @@ The Rails tests cover organization registration, manager login, tenant isolation
 
 All application endpoints except organization registration, sign-in, and health require a bearer token. Employee searches, profiles, changes, salaries, and dashboard summaries are scoped to the signed-in manager’s organization. All aggregate calculations are performed in SQL; salary is never summed or averaged across currencies. Pagination is capped at 100 rows. Salary changes are append-only through the application API, with a unique `(employee_id, effective_from)` constraint and checks for positive amounts, supported currencies, and later effective dates.
 
+### MCP connection
+
+The MCP endpoint accepts the same `Authorization: Bearer <access-token>` JWT issued by `POST /api/v1/session`; MCP clients must be configured to send that header and renew the access token when it expires (15 minutes). MCP tool arguments cannot set a user or organization. Rails loads the user from the verified token and scopes `ask_payroll` to that user's organization and assigned departments. The server uses the official Ruby `mcp` SDK with Streamable HTTP and a fresh stateless server context per request.
+
+For local evaluation, point an MCP client that supports remote Streamable HTTP and custom headers at `http://127.0.0.1:3000/api/v1/mcp` and configure an access token obtained through the app sign-in API. For a non-loopback deployment, set `MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS` to comma-separated allowlists. This app accepts its own bearer JWT; it does not currently provide MCP OAuth 2.1 discovery/authorization endpoints for clients that require the complete OAuth flow. Read [the MCP request, auth, and tenant details](docs/architecture-and-data-flow.md#authenticated-mcp-server) before exposing the endpoint outside local evaluation.
+
 ## Deployable container
 
 The root `Dockerfile` builds the React app and packages it with Rails. `docker-compose.yml` serves the static frontend and API from one origin and persists the SQLite databases in a named volume. It is a single-instance container setup; use PostgreSQL and a production deployment platform for multi-instance or high-availability deployments. Create a strong secret key before starting it:
@@ -66,6 +73,9 @@ The root `Dockerfile` builds the React app and packages it with Rails. `docker-c
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
 export OPENAI_API_KEY="your-openai-api-key"
 # Optional: export OPENAI_MODEL="gpt-6-luna"
+# Optional when exposing MCP behind a public host or browser origin:
+# export MCP_ALLOWED_HOSTS="people.example.com"
+# export MCP_ALLOWED_ORIGINS="https://people.example.com"
 # Optional: set this to true to load the synthetic 10,000-employee demo dataset.
 export SEED_DEMO_DATA=true
 docker compose up --build
@@ -81,7 +91,7 @@ The assistant only receives the authenticated user's existing organization and d
 
 - `REQUIREMENTS.md` — one-page product framing and boundaries.
 - `docs/engineering-notes.md` — architecture, data model, scale and trade-offs, AI-assisted workflow.
-- `docs/architecture-and-data-flow.md` — system architecture, assistant data flow, tenant boundaries, and Mermaid ER diagram.
+- `docs/architecture-and-data-flow.md` — system architecture, JWT lifecycle, RubyLLM and MCP data flows, tenant boundaries, code references, and Mermaid ER diagram.
 - `api/` — Rails API, migrations, deterministic seed, model and integration tests.
 - `web/` — React interface, TypeScript API client, formatting helpers and tests.
 
@@ -93,4 +103,4 @@ The assistant only receives the authenticated user's existing organization and d
 4. Inspect salary history or add a future-dated salary change with a reason and local currency.
 5. Open Compensation to compare average salary and headcount within each country/department and inspect native-currency totals.
 
-The [Admin and HR demo recording](<ACME People - Admin and HR Demo.mp4>) demonstrates the seeded app, employee and salary workflows, and role-scoped views. The recording does not include a live payroll-assistant response because that requires a configured OpenAI API key. No public deployment URL has been created; deployment needs a hosting target and account.
+No demo recording or public deployment URL is currently included in the repository. A hosting target and account are needed to deploy the app.

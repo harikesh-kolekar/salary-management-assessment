@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       get "reference_data", to: "reference_data#show"
       resources :hr_managers, only: :create
       post "assistant/ask", to: "assistant#ask", as: :assistant_ask
+      match "mcp", to: "mcp#handle", via: %i[get post delete], as: :mcp
       resources :departments, only: %i[index show create update]
       get "dashboard", to: "dashboard#show"
       resources :employees, only: %i[index show create update] do

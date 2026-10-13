@@ -9,6 +9,8 @@ services:
       RAILS_SERVE_STATIC_FILES: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     volumes:
       - salary_storage:/app/storage
