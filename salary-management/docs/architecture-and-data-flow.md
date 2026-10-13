@@ -19,13 +19,16 @@ flowchart LR
   Services --> Models[Active Record models and validations]
   Models --> DB[(SQLite database)]
 
-  Services -->|question + tool schema; no DB connection| RubyLLM[RubyLLM payroll reporting agent]
-  RubyLLM -->|OpenAI Responses API| OpenAI[OpenAI GPT-6 Luna]
-  OpenAI -->|structured payroll_report tool call| RubyLLM
-  RubyLLM -->|executes tool locally| ReportTool[PayrollReportTool]
-  ReportTool -->|scoped SQL queries and aggregates| DB
-  ReportTool -->|aggregate result for summary| RubyLLM
-  Services -->|answer, chart data, requested page of rows| Rails
+  Services -->|question + tool schema; no database connection| RubyLLM[RubyLLM payroll reporting agent]
+  RubyLLM -->|question + instructions + schema; no employee rows| OpenAI[OpenAI Responses API, GPT-6 Luna by default]
+  OpenAI -->|structured report arguments; no SQL| RubyLLM
+  RubyLLM -->|dispatch fixed tool locally in Rails| ReportTool[PayrollReportTool]
+  ReportTool -->|scoped, parameterized Active Record queries| DB
+  DB -->|matching records and aggregates| ReportTool
+  ReportTool -->|counts and grouped aggregates only| RubyLLM
+  ReportTool -->|optional requested page of rows remains server-side| Services
+  RubyLLM -->|concise answer| Services
+  Services -->|answer, optional chart and requested rows| Rails
   Rails --> React
   React -->|table, chart, or answer| Browser
 ```

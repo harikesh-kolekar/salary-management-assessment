@@ -4,6 +4,8 @@ An HR manager workspace for a synthetic 10,000-person, multi-country workforce. 
 
 > This MVP includes manager login and organization-level data isolation, but it is still a demo and is not approved for production employee data. Production use still needs security review, access auditing, backup protection, and operational controls. Read [the requirements](REQUIREMENTS.md) for scope and omissions.
 
+**Assignment brief:** [Salary Management Assessment (PDF)](docs/Salary-Management-Assessment.pdf)
+
 ## Run locally
 
 Requirements: Ruby 3.3.3 with Rails 8.1.4 (RVM is already configured on the development machine), Node.js 20.19+ (the bundled Node 24 runtime is fine), and pnpm 11.
@@ -65,6 +67,14 @@ The MCP endpoint accepts the same `Authorization: Bearer <access-token>` JWT iss
 
 For local evaluation, point an MCP client that supports remote Streamable HTTP and custom headers at `http://127.0.0.1:3000/api/v1/mcp` and configure an access token obtained through the app sign-in API. For a non-loopback deployment, set `MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS` to comma-separated allowlists. This app accepts its own bearer JWT; it does not currently provide MCP OAuth 2.1 discovery/authorization endpoints for clients that require the complete OAuth flow. Read [the MCP request, auth, and tenant details](docs/architecture-and-data-flow.md#authenticated-mcp-server) before exposing the endpoint outside local evaluation.
 
+## LLM reporting assistant
+
+The Ask Payroll feature uses [RubyLLM](https://github.com/crmne/ruby_llm) with OpenAI's Responses API. `OPENAI_API_KEY` is read only by Rails from the server environment; `OPENAI_MODEL` optionally selects the model (default: `gpt-6-luna`). The browser never receives the provider key. Without a configured key, the assistant endpoint returns a setup-required response.
+
+For an authenticated, in-scope question, Rails first builds the signed-in user's organization and department-scoped employee relation. RubyLLM sends the question, the assistant's reporting instructions, and a constrained, allow-listed report-tool schema to OpenAI. OpenAI returns structured arguments for `payroll_report`; Rails invokes that local tool and runs the query using fixed Active Record filters and bounded pagination. The LLM does not generate or execute SQL. The tool sends aggregate counts and chart groups to the model for a short explanation, while requested employee rows stay in Rails and go directly to the React UI. List questions show a table; count/chart questions do not include employee rows. The assistant supports employee lists, salary increases, headcount, and count charts by department, country, status, or salary-change month. Salary amounts are not combined across currencies.
+
+See the [LLM request/data-flow diagram and implementation references](docs/architecture-and-data-flow.md#ruby-llm-and-openai-reporting-assistant) for the full flow, tenant boundaries, and code locations.
+
 ## Deployable container
 
 The root `Dockerfile` builds the React app and packages it with Rails. `docker-compose.yml` serves the static frontend and API from one origin and persists the SQLite databases in a named volume. It is a single-instance container setup; use PostgreSQL and a production deployment platform for multi-instance or high-availability deployments. Create a strong secret key before starting it:
@@ -83,9 +93,7 @@ docker compose up --build
 
 Then open <http://127.0.0.1:3000>. Demo seeding is off by default; set `SEED_DEMO_DATA=true` before startup to seed synthetic accounts and 10,000 employees. Seeding runs at container startup and is safe to rerun for employee and salary natural keys, but it resets the seeded demo users' passwords. To seed after startup, run `docker compose exec app bundle exec rails db:seed`. Keep `/app/storage` on a persistent disk. This Compose setup is intended for local evaluation or a synthetic-data demo, not as a production deployment template for real payroll records. Before using real employee data, add access audit logging, encrypted backups, rate limiting, PostgreSQL, and an organization-approved security and privacy review.
 
-The payroll assistant uses RubyLLM with OpenAI's Responses API and reads `OPENAI_API_KEY` from the server environment. Never put the key in React, source code, or a committed `.env` file. Local Rails development needs the variable exported before starting the API. The default model is `gpt-6-luna`; override it with `OPENAI_MODEL` if needed. Without an OpenAI API key, the assistant returns a setup message without calling the model.
-
-The assistant only receives the authenticated user's existing organization and department-scoped employee relation. Its only model tool runs fixed, parameterized reports; it cannot run arbitrary SQL or access external tools. It supports employee lists, salary increases, headcount, and count charts grouped by department, country, status, or salary-change month.
+Never put the OpenAI key in React, source code, or a committed `.env` file. Local Rails development needs `OPENAI_API_KEY` exported before starting the API.
 
 ## Repository map
 
