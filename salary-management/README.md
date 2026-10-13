@@ -60,19 +60,20 @@ All application endpoints except organization registration, sign-in, and health 
 
 ## Deployable container
 
-The root `Dockerfile` builds the React app and packages it with Rails. `docker-compose.yml` persists SQLite under a named volume and serves the static frontend and API from one origin. Create a strong secret key before running it:
+The root `Dockerfile` builds the React app and packages it with Rails. `docker-compose.yml` serves the static frontend and API from one origin and persists the SQLite databases in a named volume. It is a single-instance container setup; use PostgreSQL and a production deployment platform for multi-instance or high-availability deployments. Create a strong secret key before starting it:
 
 ```sh
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
-export CLOUDFLARE_API_TOKEN="your-workers-ai-token"
-export CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
-# Optional: export CLOUDFLARE_MODEL="openai/gpt-6-luna"
+export OPENAI_API_KEY="your-openai-api-key"
+# Optional: export OPENAI_MODEL="gpt-6-luna"
+# Optional: set this to true to load the synthetic 10,000-employee demo dataset.
+export SEED_DEMO_DATA=true
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:3000>. Seed optional synthetic rows with `docker compose exec app bundle exec rails db:seed`. Provide a persistent disk for `/app/storage` on a hosting platform. A public demo can use synthetic data. Before real employee records are loaded, add access audit logging, encrypted backups, rate limiting, and an organization-approved security and privacy review.
+Then open <http://127.0.0.1:3000>. Demo seeding is off by default; set `SEED_DEMO_DATA=true` before startup to seed synthetic accounts and 10,000 employees. Seeding runs at container startup and is safe to rerun for employee and salary natural keys, but it resets the seeded demo users' passwords. To seed after startup, run `docker compose exec app bundle exec rails db:seed`. Keep `/app/storage` on a persistent disk. This Compose setup is intended for local evaluation or a synthetic-data demo, not as a production deployment template for real payroll records. Before using real employee data, add access audit logging, encrypted backups, rate limiting, PostgreSQL, and an organization-approved security and privacy review.
 
-The payroll assistant uses RubyLLM with Cloudflare's OpenAI-compatible chat completions endpoint. It reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from the server environment; the account ID is required to build the Cloudflare account endpoint. Never put credentials in React or source code, or commit a `.env` file. Local Rails development needs both variables exported before starting the API. The default model is `openai/gpt-6-luna`; override it with `CLOUDFLARE_MODEL` if needed. Without the Cloudflare configuration, the assistant returns a setup message without calling the model.
+The payroll assistant uses RubyLLM with OpenAI's Responses API and reads `OPENAI_API_KEY` from the server environment. Never put the key in React, source code, or a committed `.env` file. Local Rails development needs the variable exported before starting the API. The default model is `gpt-6-luna`; override it with `OPENAI_MODEL` if needed. Without an OpenAI API key, the assistant returns a setup message without calling the model.
 
 The assistant only receives the authenticated user's existing organization and department-scoped employee relation. Its only model tool runs fixed, parameterized reports; it cannot run arbitrary SQL or access external tools. It supports employee lists, salary increases, headcount, and count charts grouped by department, country, status, or salary-change month.
 
@@ -80,6 +81,7 @@ The assistant only receives the authenticated user's existing organization and d
 
 - `REQUIREMENTS.md` — one-page product framing and boundaries.
 - `docs/engineering-notes.md` — architecture, data model, scale and trade-offs, AI-assisted workflow.
+- `docs/architecture-and-data-flow.md` — system architecture, assistant data flow, tenant boundaries, and Mermaid ER diagram.
 - `api/` — Rails API, migrations, deterministic seed, model and integration tests.
 - `web/` — React interface, TypeScript API client, formatting helpers and tests.
 
@@ -91,4 +93,4 @@ The assistant only receives the authenticated user's existing organization and d
 4. Inspect salary history or add a future-dated salary change with a reason and local currency.
 5. Open Compensation to compare average salary and headcount within each country/department and inspect native-currency totals.
 
-The `docs/engineering-notes.md` contains the design choices and AI-use notes for an assessment walkthrough. No public deployment URL or recording has been created in this workspace; a hosting account/target is needed for those submission artifacts.
+The [Admin and HR demo recording](<ACME People - Admin and HR Demo.mp4>) demonstrates the seeded app, employee and salary workflows, and role-scoped views. The recording does not include a live payroll-assistant response because that requires a configured OpenAI API key. No public deployment URL has been created; deployment needs a hosting target and account.

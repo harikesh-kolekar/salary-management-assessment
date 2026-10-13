@@ -7,12 +7,18 @@ services:
       RAILS_ENV: production
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE before starting}
       RAILS_SERVE_STATIC_FILES: "1"
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
-      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
-      CLOUDFLARE_MODEL: ${CLOUDFLARE_MODEL:-openai/gpt-6-luna}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     volumes:
       - salary_storage:/app/storage
-    command: sh -c "bundle exec rails db:prepare && bundle exec rails db:seed && bundle exec rails server -b 0.0.0.0"
+    command:
+      - sh
+      - -c
+      - >-
+        bundle exec rails db:prepare &&
+        if [ "$$SEED_DEMO_DATA" = "true" ]; then bundle exec rails db:seed; fi &&
+        exec bundle exec rails server -b 0.0.0.0
 
 volumes:
   salary_storage:

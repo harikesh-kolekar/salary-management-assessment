@@ -1,8 +1,15 @@
 .git
 .DS_Store
+.env
+.env.*
+!.env.example
 **/node_modules
 **/dist
 api/storage/*.sqlite3
 api/storage/*.sqlite3-*
 api/log/*
 api/tmp/*
+api/.env
+api/.env.*
+api/config/master.key
+api/config/credentials/*.key

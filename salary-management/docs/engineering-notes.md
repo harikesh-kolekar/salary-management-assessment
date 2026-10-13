@@ -2,23 +2,7 @@
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  HR[HR manager] --> UI[React + TypeScript / Vite]
-  UI -->|JSON, same-origin in deployment| API[Rails 8.1 API]
-  API --> DB[(SQLite relational database)]
-  subgraph Data
-    O[Organization]
-    U[Manager user]
-    E[Employee]
-    S[SalaryRecord]
-    O -->|1 to many| U
-    O -->|1 to many| E
-    E -->|1 to many| S
-  end
-  DB --- E
-  DB --- S
-```
+See [Architecture, Data Flow, and Data Model](architecture-and-data-flow.md) for the current system architecture, assistant request sequence, tenant boundaries, and ER diagram.
 
 The app is split into a frontend and API to keep UI iteration independent from the data and validation contract. Rails owns validation, effective-date semantics, query filtering, and aggregates. The frontend formats and displays values but never calculates payroll totals. In development, Vite proxies API traffic; a single container can serve the compiled frontend and API from one origin.
 

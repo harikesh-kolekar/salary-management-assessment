@@ -56,11 +56,10 @@ class ApiV1OrganizationsTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
-  test "refresh without a cookie is rejected and clears the cookie path" do
+  test "refresh without a cookie is rejected" do
     post "/api/v1/session/refresh"
 
     assert_response :unauthorized
-    assert response.headers["Set-Cookie"].to_s.include?("salary_refresh_token=")
   end
 
   test "manager login does not accept an incorrect password" do

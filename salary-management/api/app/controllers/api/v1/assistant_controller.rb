@@ -8,7 +8,7 @@ module Api
         result = Reports::PayrollAssistant.new(employee_scope: visible_employees, page: requested_page).call(question)
         render json: result
       rescue Reports::PayrollAssistant::MissingProviderConfig
-        render json: { error: "The payroll assistant is not configured yet. Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the server environment." }, status: :service_unavailable
+        render json: { error: "The payroll assistant is not configured yet. Set OPENAI_API_KEY in the server environment." }, status: :service_unavailable
       rescue ActionController::ParameterMissing
         render json: { error: "A question is required." }, status: :unprocessable_entity
       rescue StandardError => error

@@ -1,8 +1,9 @@
 class PayrollReportingAgent < RubyLLM::Agent
-  model ENV.fetch("CLOUDFLARE_MODEL", "openai/gpt-6-luna"),
+  model ENV.fetch("OPENAI_MODEL", "gpt-6-luna"),
     provider: :openai,
-    protocol: :chat_completions,
+    protocol: :responses,
     assume_model_exists: true
+  thinking effort: :none
   max_output_tokens 1400
 
   instructions <<~INSTRUCTIONS

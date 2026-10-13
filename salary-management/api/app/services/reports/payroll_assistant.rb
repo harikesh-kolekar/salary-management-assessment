@@ -14,7 +14,7 @@ module Reports
 
     def call(question)
       return { answer: OUT_OF_SCOPE_REPLY, report: nil } unless question.match?(PROJECT_TERMS) && question.match?(REPORT_INTENTS)
-      raise MissingProviderConfig if ENV["CLOUDFLARE_API_TOKEN"].blank? || ENV["CLOUDFLARE_ACCOUNT_ID"].blank?
+      raise MissingProviderConfig if ENV["OPENAI_API_KEY"].blank?
 
       report_tool = PayrollReportTool.new(
         employee_scope: @employee_scope,
