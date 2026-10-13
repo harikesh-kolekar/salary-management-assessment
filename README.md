@@ -6,6 +6,19 @@ An HR manager workspace for a synthetic 10,000-person, multi-country workforce. 
 
 **Assignment brief:** [Salary Management Assessment (PDF)](docs/Salary-Management-Assessment.pdf)
 
+**Live demo:** [ACME People on Render](https://salary-management-assessment-s4ac.onrender.com/)
+
+Demo sign-in accounts (all use password `1234567890`):
+
+| Role | Email | Access |
+| --- | --- | --- |
+| Organization admin / HR manager | `hr.manager@acme.test` | All departments and organization administration |
+| Department HR manager | `engineering.hr@acme.test` | Engineering, Product, and Support employees |
+| Department HR manager | `finance.hr@acme.test` | Finance and Sales employees |
+| Department HR manager | `people.hr@acme.test` | Legal, Marketing, Operations, and People employees |
+
+These are synthetic demo accounts and are available on the hosted demo only when its `SEED_DEMO_DATA=true` environment variable is enabled and the seed has run. Do not use these credentials or this demo deployment for real employee data.
+
 ## Run locally
 
 Requirements: Ruby 3.3.3 with Rails 8.1.4 (RVM is already configured on the development machine), Node.js 20.19+ (the bundled Node 24 runtime is fine), and pnpm 11.
@@ -77,7 +90,7 @@ See the [LLM request/data-flow diagram and implementation references](docs/archi
 
 ## Deployable container
 
-The root `Dockerfile` builds the React app and packages it with Rails. Development and test use SQLite; production uses PostgreSQL through `DATABASE_URL`. `docker-compose.yml` serves the static frontend and API from one origin and retains a named volume for local storage. Set a strong Rails secret and the production database URL before starting it:
+The root `Dockerfile` builds the React app and packages it with Rails. Development and test use SQLite; production uses PostgreSQL through `DATABASE_URL`. The container runs `bundle exec rails db:prepare` before starting Rails, so pending migrations are applied during deployment startup. For Render, use the repository root as the Docker build context and configure `SECRET_KEY_BASE` and `DATABASE_URL` in the service environment. Enable `SEED_DEMO_DATA=true` only for a synthetic-data demo; this loads the 10,000 employee seed and resets seeded demo passwords whenever the container starts. Set `OPENAI_API_KEY` if the hosted payroll assistant should be enabled. `docker-compose.yml` serves the static frontend and API from one origin and retains a named volume for local storage. For local Compose, set a strong Rails secret and the production database URL before starting it:
 
 ```sh
 export SECRET_KEY_BASE="$(cd api && bundle exec rails secret)"
@@ -87,7 +100,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 # Optional when exposing MCP behind a public host or browser origin:
 # export MCP_ALLOWED_HOSTS="people.example.com"
 # export MCP_ALLOWED_ORIGINS="https://people.example.com"
-# Optional: set this to true to load the synthetic 10,000-employee demo dataset.
+# Optional: set this to true to load synthetic demo accounts and 10,000 employees.
 export SEED_DEMO_DATA=true
 docker compose up --build
 ```
@@ -112,4 +125,4 @@ Never put the OpenAI key in React, source code, or a committed `.env` file. Loca
 4. Inspect salary history or add a future-dated salary change with a reason and local currency.
 5. Open Compensation to compare average salary and headcount within each country/department and inspect native-currency totals.
 
-No demo recording or public deployment URL is currently included in the repository. A hosting target and account are needed to deploy the app.
+The hosted demo is available at <https://salary-management-assessment-s4ac.onrender.com/>. It may take a short time to respond after an idle period while the hosting service starts the app.

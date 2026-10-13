@@ -16,4 +16,4 @@ COPY api/ ./
 COPY --from=frontend /web/dist/ ./public/
 RUN mkdir -p storage tmp/pids
 EXPOSE 3000
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+CMD ["sh", "-c", "bundle exec rails db:prepare && if [ \"$SEED_DEMO_DATA\" = \"true\" ]; then bundle exec rails db:seed; fi && exec bundle exec rails server -b 0.0.0.0"]
